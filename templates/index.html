@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section class="hero-section">
+    <h1>Welcome back, <span style="color: var(--accent-secondary);">{{ user.username }}</span></h1>
+    <p style="color: var(--text-secondary);">Your portfolio is currently <span class="{{ performance.class }} {{ performance.border }}">{{ performance.status }}</span> the market benchmarks.</p>
+</section>
+
+<div class="stats-grid">
+    {% for portfolio in portfolios %}
+    <div class="glass-card">
+        <div class="stat-label">{{ portfolio.name }}</div>
+        <div class="stat-value {{ portfolio.value_class }}">${{ "{:,.2f}".format(portfolio.total_value) }}</div>
+        <div class="{{ portfolio.daily_class }}" style="font-size: 0.9rem;">
+            {{ "+" if portfolio.daily_change >= 0 else "" }}{{ "%.2f"|format(portfolio.daily_change) }}% today
+        </div>
+    </div>
+    {% endfor %}
+    <div class="glass-card">
+        <div class="stat-label">Market Status</div>
+        <div class="stat-value" style="color: white;">OPEN</div>
+        <div style="color: var(--text-secondary); font-size: 0.9rem;">NYSE / NASDAQ</div>
+    </div>
+</div>
+
+<div class="glass-card" style="margin-bottom: 2rem;">
+    <h2>Current Holdings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ASSET</th>
+                <th>QUANTITY</th>
+                <th>AVG PRICE</th>
+                <th>CURR PRICE</th>
+                <th>TOTAL VALUE</th>
+                <th>P/L</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for holding in holdings %}
+            <tr>
+                <td>
+                    <div style="font-weight: 700;">{{ holding.symbol }}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">{{ holding.name }}</div>
+                </td>
+                <td>{{ holding.quantity }}</td>
+                <td>${{ "{:,.2f}".format(holding.average_buy_price) }}</td>
+                <td>${{ "{:,.2f}".format(holding.current_price) }}</td>
+                <td>${{ "{:,.2f}".format(holding.total_holding_value) }}</td>
+                <td>
+                    <span class="badge {{ holding.pl_class }}">
+                        {{ "+" if holding.pl_percentage >= 0 else "" }}{{ "%.2f"|format(holding.pl_percentage) }}%
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div class="glass-card">
+        <h2>Transaction History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>TYPE</th>
+                    <th>ASSET</th>
+                    <th>QTY</th>
+                    <th>PRICE (Basis)</th>
+                    <th>DATE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transactions %}
+                <tr>
+                    <td>
+                        {% if tx.transaction_type == 'BUY' %}
+                            <span class="badge badge-success">ADDED</span>
+                        {% else %}
+                            <span class="badge badge-danger">REMOVED</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ tx.symbol }}</td>
+                    <td>{{ tx.quantity }}</td>
+                    <td>${{ tx.price_per_unit }}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ tx.transaction_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="glass-card">
+        <h2>Manage Portfolio</h2>
+        <form action="/manage_holding" method="POST">
+            <div style="margin-bottom: 1rem;">
+                <label class="stat-label">Action</label><br>
+                <select name="action" style="width: 100%; margin-top: 0.5rem;" required>
+                    <option value="add">Add Asset (Log Purchase)</option>
+                    <option value="remove">Remove Asset (Log Sale)</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="stat-label">Select Portfolio</label><br>
+                <select name="portfolio_id" style="width: 100%; margin-top: 0.5rem;" required>
+                    {% for p in portfolios %}
+                    <option value="{{ p.portfolio_id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="stat-label">Asset</label><br>
+                <select name="asset_id" style="width: 100%; margin-top: 0.5rem;" required>
+                    {% for a in assets %}
+                    <option value="{{ a.asset_id }}">{{ a.symbol }} - {{ a.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label class="stat-label">Quantity</label><br>
+                    <input type="number" step="0.01" name="quantity" style="width: 100%; margin-top: 0.5rem; box-sizing: border-box;" placeholder="0.00" required>
+                </div>
+                <div>
+                    <label class="stat-label">Cost Basis</label><br>
+                    <input type="number" step="0.01" name="price" style="width: 100%; margin-top: 0.5rem; box-sizing: border-box;" placeholder="0.00" required>
+                </div>
+            </div>
+            <button type="submit" style="width: 100%;">UPDATE PORTFOLIO</button>
+        </form>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div class="glass-card">
+        <h2>Your Watchlist {% if watchlist %}({{ watchlist.name }}){% endif %}</h2>
+        {% if watchlist and watchlist.asset_details %}
+        <ul style="list-style-type: none; padding: 0;">
+            {% for asset in watchlist.asset_details %}
+            <li style="padding: 1rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between;">
+                <strong>{{ asset.symbol }}</strong> 
+                <span style="color: var(--accent-secondary);">${{ "%.2f"|format(asset.current_price) }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color: var(--text-secondary);">No active watchlists found.</p>
+        {% endif %}
+    </div>
+
+    <div class="glass-card">
+        <h2>Market News & Signals</h2>
+        <ul style="list-style-type: none; padding: 0;">
+            {% for item in news %}
+            <li style="padding: 1rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.3rem;">{{ item.headline }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">Source: {{ item.source }} | Related: {{ item.related_asset_symbols | join(', ') }}</div>
+            </li>
+            {% endfor %}
+            {% if not news %}
+            <li style="color: var(--text-secondary);">No market news available at this time.</li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

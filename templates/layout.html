@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXIOM | Portfolio Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">axiom</div>
+            {% if session.get('user_id') %}
+            <nav>
+                <a href="/" style="color: white; text-decoration: none; margin-right: 1.5rem;">Dashboard</a>
+                {% if session.get('role') == 'admin' %}
+                <a href="/admin" style="color: var(--text-secondary); text-decoration: none; margin-right: 1.5rem;">Surveillance</a>
+                <a href="/admin/sql-console" style="color: var(--text-secondary); text-decoration: none;">SQL Explorer</a>
+                {% endif %}
+            </nav>
+            <div class="user-profile" style="display: flex; align-items: center; gap: 1.5rem;">
+                <span class="badge badge-success">Active: {{ session.get('username') }}</span>
+                <a href="/logout" style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+            </div>
+            {% endif %}
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="glass-card" style="margin-bottom: 1rem; color: var(--accent-primary); border-color: var(--accent-primary);">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

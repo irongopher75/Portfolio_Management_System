@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section class="hero-section">
+    <h1>Surveillance <span style="color: var(--danger);">Console</span></h1>
+    <p style="color: var(--text-secondary);">Monitoring system-wide admin activity and audit logs.</p>
+</section>
+
+<div class="glass-card">
+    <h2>Audit Logs</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>DATE</th>
+                <th>ADMIN</th>
+                <th>ACTION</th>
+                <th>TARGET</th>
+                <th>DETAILS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td style="font-size: 0.8rem;">{{ log.timestamp }}</td>
+                <td>{{ log.admin_name }}</td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.1);">{{ log.action }}</span></td>
+                <td>{{ log.target_name or 'SYSTEM' }}</td>
+                <td style="color: var(--text-secondary); font-size: 0.9rem;">{{ log.details }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No logs found. All systems nominal.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
