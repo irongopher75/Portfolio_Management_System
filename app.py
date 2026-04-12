@@ -1,52 +1,83 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import check_password_hash
+import sqlite3
 import mysql.connector
 import os
 import random
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from market_engine import update_market_prices
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
+DB_PATH = "portfolio.db"
+
 def get_db_connection():
-    ssl_ca = os.environ.get('MYSQL_SSL_CA')
-    db_config = {
-        'host': os.environ.get('MYSQL_HOST', 'localhost'),
-        'user': os.environ.get('MYSQL_USER', 'root'),
-        'password': os.environ.get('MYSQL_PASSWORD', ''),
-        'database': os.environ.get('MYSQL_DB', 'portfolio_manager')
-    }
+    # Detect if we should use MySQL (env vars present)
+    if os.getenv("MYSQL_HOST"):
+        return mysql.connector.connect(
+            host=os.getenv("MYSQL_HOST"),
+            port=int(os.getenv("MYSQL_PORT", 3306)),
+            user=os.getenv("MYSQL_USER"),
+            password=os.getenv("MYSQL_PASSWORD"),
+            database=os.getenv("MYSQL_DB"),
+            ssl_ca=os.getenv("MYSQL_SSL_CA"),
+            ssl_verify_cert=True
+        )
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
+        return conn
+
+# Simple cache for market pricing
+last_market_update = datetime.min
+
+def execute_query(conn, query, params=()):
+    cursor = conn.cursor(dictionary=True) if hasattr(conn, 'cursor') and not isinstance(conn, sqlite3.Connection) else conn.cursor()
     
-    # PlanetScale requires SSL
-    if ssl_ca and os.path.exists(ssl_ca):
-        db_config['ssl_ca'] = ssl_ca
-        db_config['ssl_verify_cert'] = True
+    # Convert ? to %s for MySQL if needed
+    if not isinstance(conn, sqlite3.Connection):
+        query = query.replace('?', '%s')
         
-    return mysql.connector.connect(**db_config)
+    cursor.execute(query, params)
+    return cursor
 
 
 @app.route('/')
 def index():
+    global last_market_update
     if 'user_id' not in session:
         return redirect(url_for('login'))
         
+    # Refresh market prices if older than 5 minutes
+    if datetime.now() - last_market_update > timedelta(minutes=5):
+        try:
+            update_market_prices()
+            last_market_update = datetime.now()
+        except Exception as e:
+            print(f"Background market update failed: {e}")
+
     user_id = session['user_id']
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
     
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,)) if not isinstance(conn, sqlite3.Connection) else \
+    cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
     user = cursor.fetchone()
     
     if user['role'] == 'admin':
         # Admin visibility
+        cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
         cursor.execute("""
             SELECT p.*, u.username as owner_name 
             FROM portfolios p
             JOIN users u ON p.user_id = u.user_id
         """)
-        portfolios = cursor.fetchall()
+        portfolios = [dict(row) for row in cursor.fetchall()]
         
         cursor.execute("""
             SELECT t.*, a.symbol as symbol 
@@ -54,35 +85,37 @@ def index():
             JOIN assets a ON t.asset_id = a.asset_id
             ORDER BY t.transaction_date DESC LIMIT 50
         """)
-        transactions = cursor.fetchall()
+        transactions = [dict(row) for row in cursor.fetchall()]
         watchlist = None
         watchlist_items = []
     else:
         # Standard user
-        cursor.execute("SELECT * FROM portfolios WHERE user_id = %s", (user_id,))
-        portfolios = cursor.fetchall()
+        cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+        q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+        cursor.execute(f"SELECT * FROM portfolios WHERE user_id = {q_mark}", (user_id,))
+        portfolios = [dict(row) for row in cursor.fetchall()]
         
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT t.*, a.symbol as symbol 
             FROM transactions t
             JOIN assets a ON t.asset_id = a.asset_id
             JOIN portfolios p ON t.portfolio_id = p.portfolio_id
-            WHERE p.user_id = %s
+            WHERE p.user_id = {q_mark}
             ORDER BY t.transaction_date DESC LIMIT 15
         """, (user_id,))
-        transactions = cursor.fetchall()
+        transactions = [dict(row) for row in cursor.fetchall()]
         
-        cursor.execute("SELECT * FROM watchlists WHERE user_id = %s", (user_id,))
+        cursor.execute(f"SELECT * FROM watchlists WHERE user_id = {q_mark}", (user_id,))
         watchlist = cursor.fetchone()
         watchlist_items = []
         if watchlist:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT a.* 
                 FROM watchlist_items wi
                 JOIN assets a ON wi.asset_id = a.asset_id
-                WHERE wi.watchlist_id = %s
+                WHERE wi.watchlist_id = {q_mark}
             """, (watchlist['watchlist_id'],))
-            watchlist_items = cursor.fetchall()
+            watchlist_items = [dict(row) for row in cursor.fetchall()]
 
     # Get holdings
     cursor.execute("""
@@ -91,7 +124,7 @@ def index():
         JOIN portfolios p ON h.portfolio_id = p.portfolio_id
         JOIN assets a ON h.asset_id = a.asset_id
     """)
-    holdings_raw = cursor.fetchall()
+    holdings_raw = [dict(row) for row in cursor.fetchall()]
     
     if user['role'] != 'admin':
         portfolio_ids = [p['portfolio_id'] for p in portfolios]
@@ -157,21 +190,31 @@ def index():
     }
 
     cursor.execute("SELECT * FROM assets ORDER BY symbol")
-    assets_list = cursor.fetchall()
-    for a in assets_list:
-        a['asset_id'] = a['asset_id'] # MySQL IDs are ints
+    assets_list = [dict(row) for row in cursor.fetchall()]
         
-    cursor.execute("SELECT * FROM market_news LIMIT 5")
-    news = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
+    cursor.execute("SELECT * FROM market_news ORDER BY published_at DESC LIMIT 10")
+    news = [dict(row) for row in cursor.fetchall()]
     
     wl_dict = None
     if watchlist:
         wl_dict = {'name': watchlist['name'], 'asset_details': watchlist_items}
+
+    total_pl = total_market_value - total_investment_cost
+    
+    cursor.close()
+    conn.close()
         
-    return render_template('index.html', user=user, portfolios=portfolios, holdings=holdings, transactions=transactions, assets=assets_list, news=news, watchlist=wl_dict, performance=performance)
+    return render_template('index.html', 
+                          user=user, 
+                          portfolios=portfolios, 
+                          holdings=holdings, 
+                          transactions=transactions, 
+                          assets=assets_list, 
+                          news=news, 
+                          watchlist=wl_dict, 
+                          performance=performance,
+                          total_valuation=total_market_value,
+                          total_pl=total_pl)
 
 @app.route('/manage_holding', methods=['POST'])
 def manage_holding():
@@ -192,21 +235,22 @@ def manage_holding():
     transaction_type = 'BUY' if action == 'add' else 'SELL'
     
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+    q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
     
     try:
-        cursor.execute("""
+        cursor.execute(f"""
             INSERT INTO transactions (portfolio_id, asset_id, transaction_type, quantity, price_per_unit) 
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES ({q_mark}, {q_mark}, {q_mark}, {q_mark}, {q_mark})
         """, (portfolio_id, asset_id, transaction_type, quantity, price))
         conn.commit()
         flash('Transaction recorded successfully!', 'success')
     except Exception as e:
-        conn.rollback()
+        if conn: conn.rollback()
         flash(f'Error: {str(e)}', 'danger')
         
     if session.get('role') == 'admin':
-        cursor.execute("INSERT INTO audit_logs (admin_id, action) VALUES (%s, %s)", 
+        cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q_mark}, {q_mark})", 
                        (session['user_id'], f"Admin force update: {action} {quantity} of asset {asset_id}"))
         conn.commit()
         
@@ -221,8 +265,9 @@ def login():
         password = request.form.get('password')
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+        q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+        cursor.execute(f"SELECT * FROM users WHERE username = {q_mark}", (username,))
         user = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -243,21 +288,22 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/admin')
-def admin():
+def admin_audit():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
         
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
     cursor.execute("""
         SELECT l.*, u.username as admin_name
         FROM audit_logs l
         JOIN users u ON l.admin_id = u.user_id
         ORDER BY l.timestamp DESC
     """)
-    logs = cursor.fetchall()
+    logs = [dict(row) for row in cursor.fetchall()]
     
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (session['user_id'],))
+    q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+    cursor.execute(f"SELECT * FROM users WHERE user_id = {q_mark}", (session['user_id'],))
     user = cursor.fetchone()
     
     cursor.close()
@@ -275,20 +321,23 @@ def sql_console():
     query = ""
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
     
     # Get tables for sidebar
     try:
-        cursor.execute("SHOW TABLES")
+        table_query = "SELECT name FROM sqlite_master WHERE type='table'" if isinstance(conn, sqlite3.Connection) else \
+                      "SHOW TABLES"
+        cursor.execute(table_query)
         tables_raw = cursor.fetchall()
         tables = []
         for t in tables_raw:
-            table_name = list(t.values())[0]
+            table_name = t['name'] if isinstance(conn, sqlite3.Connection) else list(t.values())[0]
+            if table_name in ('sqlite_sequence', 'audit_logs'): continue
             # Get count for each table
-            count_cursor = conn.cursor()
-            count_cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count_cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+            count_cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
             row = count_cursor.fetchone()
-            count = row[0] if row else 0
+            count = row['count'] if row else 0
             count_cursor.close()
             tables.append({'name': table_name, 'count': count})
     except Exception as e:
@@ -305,8 +354,8 @@ def sql_console():
                 try:
                     cursor.execute(query)
                     if cursor.description: # If it's a SELECT query
-                        results = cursor.fetchall()
-                        columns = cursor.column_names
+                        results = [dict(row) for row in cursor.fetchall()]
+                        columns = [col[0] for col in cursor.description]
                     else:
                         conn.commit()
                         results = [{"Success": f"Query executed. Rows affected: {cursor.rowcount}"}]
@@ -315,8 +364,8 @@ def sql_console():
                         for t in tables:
                             count_cursor = conn.cursor()
                             try:
-                                count_cursor.execute(f"SELECT COUNT(*) FROM {t['name']}")
-                                t['count'] = count_cursor.fetchone()[0]
+                                count_cursor.execute(f"SELECT COUNT(*) as count FROM {t['name']}")
+                                t['count'] = count_cursor.fetchone()['count']
                             except: pass
                             count_cursor.close()
                 except Exception as err:
@@ -327,8 +376,9 @@ def sql_console():
     
     # Get user for header
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (session['user_id'],))
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+    q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+    cursor.execute(f"SELECT * FROM users WHERE user_id = {q_mark}", (session['user_id'],))
     user = cursor.fetchone()
     cursor.close()
     conn.close()

@@ -3,39 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AXIOM | Portfolio Manager</title>
+    <title>AXIOM Terminal | Institutional Portfolio Surveillance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">axiom</div>
-            {% if session.get('user_id') %}
-            <nav>
-                <a href="/" style="color: white; text-decoration: none; margin-right: 1.5rem;">Dashboard</a>
+    <div class="app-container">
+        {% if session.get('user_id') %}
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                AXIOM <span style="font-weight: 400; opacity: 0.6;">TML</span>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+                    Dashboard
+                </a>
                 {% if session.get('role') == 'admin' %}
-                <a href="/admin" style="color: var(--text-secondary); text-decoration: none; margin-right: 1.5rem;">Surveillance</a>
-                <a href="/admin/sql-console" style="color: var(--text-secondary); text-decoration: none;">SQL Explorer</a>
+                <a href="{{ url_for('admin_audit') }}" class="nav-item {% if request.endpoint == 'admin_audit' %}active{% endif %}">
+                    Audit Logs
+                </a>
+                <a href="{{ url_for('sql_console') }}" class="nav-item {% if request.endpoint == 'sql_console' %}active{% endif %}">
+                    Surveillance Explorer
+                </a>
                 {% endif %}
             </nav>
-            <div class="user-profile" style="display: flex; align-items: center; gap: 1.5rem;">
-                <span class="badge badge-success">Active: {{ session.get('username') }}</span>
-                <a href="/logout" style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+            <div style="padding: 1.5rem; border-top: 1px solid var(--border-color);">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">User ID: {{ session['username'] }}</div>
+                <a href="{{ url_for('logout') }}" style="color: var(--danger); text-decoration: none; font-size: 0.8rem; font-weight: 600;">DISCONNECT NODE</a>
             </div>
-            {% endif %}
-        </header>
+        </aside>
+        {% endif %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="glass-card" style="margin-bottom: 1rem; color: var(--accent-primary); border-color: var(--accent-primary);">
-                {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+        <main class="main-content" style="{% if not session.get('user_id') %}margin-left: 0; max-width: 100%;{% endif %}">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="card" style="margin-bottom: 1rem; color: var(--accent-primary); border-color: var(--accent-primary);">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
 
-        {% block content %}{% endblock %}
+            {% block content %}{% endblock %}
+        </main>
     </div>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

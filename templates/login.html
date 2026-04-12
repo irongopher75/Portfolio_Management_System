@@ -1,24 +1,29 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
-    <div class="glass-card" style="width: 100%; max-width: 400px; text-align: center;">
-        <h2 style="margin-bottom: 0.5rem;">Access Portal</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Sign in to your AXIOM account</p>
-        
-        <form action="/login" method="POST">
-            <div style="margin-bottom: 1.5rem; text-align: left;">
-                <label class="stat-label">Username</label><br>
-                <input type="text" name="username" style="width: 100%; margin-top: 0.5rem; box-sizing: border-box;" placeholder="Username" required>
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="card" style="width: 100%; max-width: 420px; padding: 3rem;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div style="font-size: 0.75rem; color: var(--accent-primary); letter-spacing: 3px; font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">Security Protocol</div>
+            <h1 style="font-size: 1.75rem; margin: 0;">AXIOM <span style="font-weight: 300; opacity: 0.6;">NODE</span></h1>
+        </div>
+
+        <form method="POST">
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Access Identity</label>
+                <input type="text" name="username" style="width: 100%; box-sizing: border-box;" placeholder="Enter username..." required>
+            </div>
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Authorization Key</label>
+                <input type="password" name="password" style="width: 100%; box-sizing: border-box;" placeholder="••••••••" required>
             </div>
             
-            <div style="margin-bottom: 2rem; text-align: left;">
-                <label class="stat-label">Password</label><br>
-                <input type="password" name="password" style="width: 100%; margin-top: 0.5rem; box-sizing: border-box;" placeholder="Password" required>
-            </div>
-
-            <button type="submit" style="width: 100%;">AUTHENTICATE</button>
+            <button type="submit" class="btn" style="width: 100%; padding: 0.8rem;">INITIATE HANDSHAKE</button>
         </form>
+
+        <div style="margin-top: 2rem; text-align: center; font-size: 0.8rem; color: var(--text-secondary);">
+            New operative? <a href="{{ url_for('register') }}" style="color: var(--accent-secondary); text-decoration: none; font-weight: 600;">Request Credentials</a>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,38 +1,46 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<section class="hero-section">
-    <h1>Surveillance <span style="color: var(--danger);">Console</span></h1>
-    <p style="color: var(--text-secondary);">Monitoring system-wide admin activity and audit logs.</p>
-</section>
+<header style="margin-bottom: 2.5rem;">
+    <h1 style="font-size: 2.5rem; letter-spacing: -1px; margin-bottom: 0.5rem;">Audit <span style="color: var(--accent-secondary);">Surveillance</span></h1>
+    <p style="color: var(--text-secondary); margin: 0;">Comprehensive protocol monitoring and administrative oversight.</p>
+</header>
 
-<div class="glass-card">
-    <h2>Audit Logs</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>DATE</th>
-                <th>ADMIN</th>
-                <th>ACTION</th>
-                <th>TARGET</th>
-                <th>DETAILS</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td style="font-size: 0.8rem;">{{ log.timestamp }}</td>
-                <td>{{ log.admin_name }}</td>
-                <td><span class="badge" style="background: rgba(255,255,255,0.1);">{{ log.action }}</span></td>
-                <td>{{ log.target_name or 'SYSTEM' }}</td>
-                <td style="color: var(--text-secondary); font-size: 0.9rem;">{{ log.details }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No logs found. All systems nominal.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 1rem;">PROTOCOL EXECUTION LOGS</h3>
+        <span class="badge" style="background: rgba(255,255,255,0.05);">{{ logs|length }} ENTRIES</span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Operative</th>
+                    <th>Action Protocol</th>
+                    <th>Timestamp</th>
+                    <th>Node ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-weight: 600; color: var(--accent-primary);">{{ log.admin_name }}</td>
+                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">{{ log.action }}</td>
+                    <td style="color: var(--text-secondary);">{{ log.timestamp }}</td>
+                    <td style="font-size: 0.75rem; font-family: var(--font-mono); opacity: 0.6;">AIVEN-NODE-01</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem; border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02);">
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div style="width: 10px; height: 10px; background: var(--accent-primary); border-radius: 50%;"></div>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+            <strong style="color: var(--text-primary);">Surveillance integrity:</strong> All administrative operations are immutable and logged with operative-level precision according to institutional compliance standards.
+        </p>
+    </div>
 </div>
 {% endblock %}
