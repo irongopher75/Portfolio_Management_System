@@ -109,6 +109,23 @@ CREATE TABLE market_news (
     published_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 9. SURVEILLANCE PROTOCOL (Pending Trades)
+CREATE TABLE trade_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    portfolio_id INT NOT NULL,
+    asset_id INT NOT NULL,
+    transaction_type ENUM('BUY', 'SELL') NOT NULL,
+    quantity DECIMAL(15, 4) NOT NULL,
+    requested_price DECIMAL(15, 2) NOT NULL,
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actioned_at TIMESTAMP NULL,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(portfolio_id) REFERENCES portfolios(portfolio_id) ON DELETE CASCADE,
+    FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+);
+
 -- =============================================================================
 -- DATABASE LOGIC (TRIGGERS)
 -- Automated data integrity and aggregated calculations implemented at the DB level

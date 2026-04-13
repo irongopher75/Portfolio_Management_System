@@ -23,7 +23,7 @@
     <div class="card">
         <div class="card-title">System Performance</div>
         <div class="stat-value" style="color: var(--accent-secondary);">{{ performance.status|upper }}</div>
-        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);">Latency: 42ms</div>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);">Latency: {{ performance.latency }}ms</div>
     </div>
 </div>
 
@@ -72,6 +72,52 @@
         <div style="height: 300px; position: relative; margin-top: 1rem;">
             <canvas id="allocationChart"></canvas>
         </div>
+    </div>
+</div>
+
+<!-- Surveillance Handshake Logs -->
+<div class="card" style="margin-top: 1.5rem; padding: 0;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+        <h3 style="margin: 0; font-size: 1rem;">ACTIVE SURVEILLANCE REQUESTS</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Type</th>
+                    <th>Qty</th>
+                    <th>Requested Price</th>
+                    <th>Protocol Status</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in trade_requests %}
+                <tr>
+                    <td style="font-weight: 600;">{{ req.symbol }}</td>
+                    <td>
+                        <span class="badge {{ 'badge-success' if req.transaction_type == 'BUY' else 'badge-danger' }}">
+                            {{ req.transaction_type }}
+                        </span>
+                    </td>
+                    <td>{{ req.quantity }}</td>
+                    <td>₹{{ "{:,.2f}".format(req.requested_price) }}</td>
+                    <td>
+                        <span class="badge {% if req.status == 'PENDING' %}badge-warning{% elif req.status == 'APPROVED' %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ req.status }}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.75rem; color: var(--text-secondary);">{{ req.created_at }}</td>
+                </tr>
+                {% endfor %}
+                {% if not trade_requests %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No active surveillance protocols detected.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
     </div>
 </div>
 

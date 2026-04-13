@@ -181,12 +181,18 @@ def index():
         p['daily_change'] = random.uniform(-3.5, 5.0)
         p['daily_class'] = 'text-success' if p['daily_change'] >= 0 else 'text-danger'
 
-    # Global performance status
+    # System Performance Telemetry (Dynamic)
+    start_lat = time.time()
+    cursor.execute("SELECT 1")
+    cursor.fetchone()
+    latency_ms = int((time.time() - start_lat) * 1000)
+    
     is_outperforming = total_market_value >= total_investment_cost
     performance = {
         'status': 'outperforming' if is_outperforming else 'underperforming',
         'class': 'text-success' if is_outperforming else 'text-danger',
-        'border': 'border-success' if is_outperforming else 'border-danger'
+        'border': 'border-success' if is_outperforming else 'border-danger',
+        'latency': latency_ms
     }
 
     cursor.execute("SELECT * FROM assets ORDER BY symbol")
@@ -201,8 +207,21 @@ def index():
 
     total_pl = total_market_value - total_investment_cost
     
+    # Get Trade Requests
+    q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+    cursor.execute(f"""
+        SELECT r.*, a.symbol as symbol 
+        FROM trade_requests r
+        JOIN assets a ON r.asset_id = a.asset_id
+        WHERE r.user_id = {q_mark}
+        ORDER BY r.created_at DESC LIMIT 10
+    """, (user_id,))
+    trade_requests = [dict(row) for row in cursor.fetchall()]
+
     cursor.close()
     conn.close()
+    
+    total_pl = total_market_value - total_investment_cost
         
     return render_template('index.html', 
                           user=user, 
@@ -214,7 +233,8 @@ def index():
                           watchlist=wl_dict, 
                           performance=performance,
                           total_valuation=total_market_value,
-                          total_pl=total_pl)
+                          total_pl=total_pl,
+                          trade_requests=trade_requests)
 
 @app.route('/manage_holding', methods=['POST'])
 def manage_holding():
@@ -239,24 +259,92 @@ def manage_holding():
     q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
     
     try:
+        # PIVOT: Instead of direct transaction, we insert a trade request
         cursor.execute(f"""
-            INSERT INTO transactions (portfolio_id, asset_id, transaction_type, quantity, price_per_unit) 
-            VALUES ({q_mark}, {q_mark}, {q_mark}, {q_mark}, {q_mark})
-        """, (portfolio_id, asset_id, transaction_type, quantity, price))
+            INSERT INTO trade_requests (user_id, portfolio_id, asset_id, transaction_type, quantity, requested_price, status) 
+            VALUES ({q_mark}, {q_mark}, {q_mark}, {q_mark}, {q_mark}, {q_mark}, 'PENDING')
+        """, (session['user_id'], portfolio_id, asset_id, transaction_type, quantity, price))
         conn.commit()
-        flash('Transaction recorded successfully!', 'success')
+        flash('Surveillance Request Submitted. Pending Admin Handshake.', 'success')
     except Exception as e:
         if conn: conn.rollback()
-        flash(f'Error: {str(e)}', 'danger')
-        
-    if session.get('role') == 'admin':
-        cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q_mark}, {q_mark})", 
-                       (session['user_id'], f"Admin force update: {action} {quantity} of asset {asset_id}"))
-        conn.commit()
+        flash(f'Protocol Error: {str(e)}', 'danger')
         
     cursor.close()
     conn.close()
     return redirect(url_for('index'))
+
+@app.route('/admin/requests')
+def admin_requests():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+    
+    cursor.execute("""
+        SELECT r.*, u.username as operative_name, p.name as portfolio_name, a.symbol as asset_symbol
+        FROM trade_requests r
+        JOIN users u ON r.user_id = u.user_id
+        JOIN portfolios p ON r.portfolio_id = p.portfolio_id
+        JOIN assets a ON r.asset_id = a.asset_id
+        WHERE r.status = 'PENDING'
+        ORDER BY r.created_at DESC
+    """)
+    pending_requests = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.close()
+    conn.close()
+    return render_template('admin_requests.html', requests=pending_requests)
+
+@app.route('/admin/requests/action/<int:request_id>/<action>')
+def action_trade_request(request_id, action):
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+    q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+    
+    # 1. Fetch request details
+    cursor.execute(f"SELECT * FROM trade_requests WHERE request_id = {q_mark}", (request_id,))
+    req = cursor.fetchone()
+    
+    if not req or req['status'] != 'PENDING':
+        flash("Invalid request code or already actioned.", "danger")
+        return redirect(url_for('admin_requests'))
+        
+    if action == 'approve':
+        try:
+            # Commit to actual transaction ledger
+            cursor.execute(f"""
+                INSERT INTO transactions (portfolio_id, asset_id, transaction_type, quantity, price_per_unit, transaction_date)
+                VALUES ({q_mark}, {q_mark}, {q_mark}, {q_mark}, {q_mark}, CURRENT_TIMESTAMP)
+            """, (req['portfolio_id'], req['asset_id'], req['transaction_type'], req['quantity'], req['requested_price']))
+            
+            # Update status
+            cursor.execute(f"UPDATE trade_requests SET status = 'APPROVED', actioned_at = CURRENT_TIMESTAMP WHERE request_id = {q_mark}", (request_id,))
+            
+            # Audit log
+            cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q_mark}, {q_mark})", 
+                           (session['user_id'], f"APPROVED trade request #{request_id} for user {req['user_id']}"))
+            
+            conn.commit()
+            flash(f"Transaction protocol {request_id} APPROVED and executed.", "success")
+        except Exception as e:
+            if conn: conn.rollback()
+            flash(f"Approval sequence failed: {str(e)}", "danger")
+    else:
+        # Rejected
+        cursor.execute(f"UPDATE trade_requests SET status = 'REJECTED', actioned_at = CURRENT_TIMESTAMP WHERE request_id = {request_id}")
+        cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q_mark}, {q_mark})", 
+                       (session['user_id'], f"REJECTED trade request #{request_id} for user {req['user_id']}"))
+        conn.commit()
+        flash(f"Transaction protocol {request_id} REJECTED.", "warning")
+
+    cursor.close()
+    conn.close()
+    return redirect(url_for('admin_requests'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -281,6 +369,36 @@ def login():
             flash('Invalid credentials.', 'danger')
             
     return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+        
+        # Check if user exists
+        q_mark = "?" if isinstance(conn, sqlite3.Connection) else "%s"
+        cursor.execute(f"SELECT * FROM users WHERE username = {q_mark}", (username,))
+        if cursor.fetchone():
+            flash("Operative identity already registered.", "danger")
+            return redirect(url_for('register'))
+            
+        from werkzeug.security import generate_password_hash
+        password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        
+        cursor.execute(f"INSERT INTO users (username, email, password_hash, role) VALUES ({q_mark}, {q_mark}, {q_mark}, 'user')", (username, email, password_hash))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        flash("Registration successful. You may now initiate handshake.", "success")
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
 
 @app.route('/logout')
 def logout():
@@ -360,14 +478,33 @@ def sql_console():
                         conn.commit()
                         results = [{"Success": f"Query executed. Rows affected: {cursor.rowcount}"}]
                         columns = ["Status"]
-                        # Refresh table counts
-                        for t in tables:
-                            count_cursor = conn.cursor()
-                            try:
-                                count_cursor.execute(f"SELECT COUNT(*) as count FROM {t['name']}")
-                                t['count'] = count_cursor.fetchone()['count']
-                            except: pass
-                            count_cursor.close()
+                        
+                        # DYNAMIC RE-FETCH: Reload tables if schema might have changed
+                        if any(x in query.upper() for x in ['CREATE', 'DROP', 'ALTER', 'TRUNCATE']):
+                            cursor.execute(table_query)
+                            tables_raw = cursor.fetchall()
+                            tables = []
+                            for t in tables_raw:
+                                table_name = t['name'] if isinstance(conn, sqlite3.Connection) else list(t.values())[0]
+                                if table_name in ('sqlite_sequence', 'audit_logs'): continue
+                                count_cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
+                                try:
+                                    count_cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
+                                    row = count_cursor.fetchone()
+                                    count = row['count'] if row else 0
+                                    tables.append({'name': table_name, 'count': count})
+                                except: pass
+                                count_cursor.close()
+                        else:
+                            # Just refresh counts for performance
+                            for t in tables:
+                                count_cursor = conn.cursor()
+                                try:
+                                    count_cursor.execute(f"SELECT COUNT(*) as count FROM {t['name']}")
+                                    row = count_cursor.fetchone()
+                                    t['count'] = row['count'] if row else 0
+                                except: pass
+                                count_cursor.close()
                 except Exception as err:
                     error = str(err)
     

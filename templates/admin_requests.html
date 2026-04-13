@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header style="margin-bottom: 2.5rem;">
+    <h1 style="font-size: 2.5rem; letter-spacing: -1px; margin-bottom: 0.5rem;">Surveillance <span style="color: var(--danger);">Queue</span></h1>
+    <p style="color: var(--text-secondary); margin: 0;">Administrative Authorization Gateway for Operative Transactions</p>
+</header>
+
+<div class="card" style="padding: 0;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 1rem;">PENDING PROTOCOLS</h3>
+        <span class="badge" style="background: var(--danger); color: white;">{{ requests|length }} ACTION REQUIRED</span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ref ID</th>
+                    <th>Operative</th>
+                    <th>Portfolio</th>
+                    <th>Asset</th>
+                    <th>Type</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Timestamp</th>
+                    <th style="text-align: right;">Authorization</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">#{{ req.request_id }}</td>
+                    <td style="font-weight: 600; color: var(--accent-primary);">{{ req.operative_name|upper }}</td>
+                    <td>{{ req.portfolio_name }}</td>
+                    <td style="font-weight: 600;">{{ req.asset_symbol }}</td>
+                    <td>
+                        <span class="badge {{ 'badge-success' if req.transaction_type == 'BUY' else 'badge-danger' }}">
+                            {{ req.transaction_type }}
+                        </span>
+                    </td>
+                    <td>{{ req.quantity }}</td>
+                    <td>₹{{ "{:,.2f}".format(req.requested_price) }}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-secondary);">{{ req.created_at }}</td>
+                    <td style="text-align: right;">
+                        <a href="{{ url_for('action_trade_request', request_id=req.request_id, action='approve') }}" 
+                           class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--success); margin-right: 0.5rem;">
+                           APPROVE
+                        </a>
+                        <a href="{{ url_for('action_trade_request', request_id=req.request_id, action='reject') }}" 
+                           class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--danger);">
+                           REJECT
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not requests %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 4rem;">
+                        <div style="font-size: 2rem; opacity: 0.1; margin-bottom: 1rem;">NO PENDING PROTOCOLS</div>
+                        All institutional handshakes have been reconciled.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-2" style="margin-top: 2rem;">
+    <div class="card">
+        <div class="card-title">Surveillance Protocol Info</div>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+            Pending transactions represent unverified intentions from operatives. 
+            <br><br>
+            <strong>APPROVE</strong>: Commits the trade to the immutable ledger and triggers real-time holding re-calculation.
+            <br>
+            <strong>REJECT</strong>: Cancels the protocol and notifies the operative via their dashboard logs.
+        </p>
+    </div>
+    <div class="card">
+        <div class="card-title">Audit Integrity</div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-secondary);">
+            SYSTEM: AXIOM_ADMIN_AUTH_V2<br>
+            SSL_STATE: VERIFIED<br>
+            INTEGRITY_CHECK: PASS<br>
+            DATA_LAKE_SYNC: ACTIVE
+        </div>
+    </div>
+</div>
+{% endblock %}

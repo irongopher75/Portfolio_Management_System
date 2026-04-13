@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="card" style="width: 100%; max-width: 420px; padding: 3rem;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <div style="font-size: 0.75rem; color: var(--accent-secondary); letter-spacing: 3px; font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">Credential Request</div>
+            <h1 style="font-size: 1.75rem; margin: 0;">NEW <span style="font-weight: 300; opacity: 0.6;">OPERATIVE</span></h1>
+        </div>
+
+        <form method="POST">
+            <div style="margin-bottom: 1.2rem;">
+                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Desired Identity</label>
+                <input type="text" name="username" style="width: 100%; box-sizing: border-box;" placeholder="Choose username..." required>
+            </div>
+            <div style="margin-bottom: 1.2rem;">
+                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Communication Node</label>
+                <input type="email" name="email" style="width: 100%; box-sizing: border-box;" placeholder="email@institutional.axiom" required>
+            </div>
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Secure Key</label>
+                <input type="password" name="password" style="width: 100%; box-sizing: border-box;" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%; padding: 0.8rem;">INITIATE REGISTRATION</button>
+        </form>
+
+        <div style="margin-top: 2rem; text-align: center; font-size: 0.8rem; color: var(--text-secondary);">
+            Existing operative? <a href="{{ url_for('login') }}" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">Return to Handshake</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

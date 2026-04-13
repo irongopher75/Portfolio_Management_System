@@ -22,7 +22,7 @@ def get_db_connection():
     )
 
 def populate():
-    print("AXIOM HIGH-VOLUME DATA ENGINE: Starting population (Institutional Stress Test)...")
+    print("AXIOM EXTREME DATA ENGINE: Starting population (40,000+ Transaction Stress Test)...")
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -59,8 +59,8 @@ def populate():
     cursor.execute("SELECT portfolio_id, user_id FROM portfolios WHERE user_id IN (%s)" % ",".join(map(str, user_ids)))
     portfolios = cursor.fetchall()
     
-    # 4. Generate 180 Days of Historical News (20 items/day = 3,600 items)
-    print("Generating 3,600 historical market signals (20/day for 6 months)...")
+    # 4. Generate 1 Year of Historical News (20 items/day = 7,300 items)
+    print("Generating 7,300 historical market signals (20/day for 1 year)...")
     news_data = []
     sources = ["Bloomberg Terminal", "Reuters Institutional", "NSE Surveillance", "Axiom Intel", "Market Alpha"]
     headlines = [
@@ -76,7 +76,7 @@ def populate():
         "Portfolio Rebalancing detected across major institutional nodes."
     ]
     
-    for i in range(180):
+    for i in range(365):
         pub_date = datetime.now() - timedelta(days=i)
         for _ in range(20):
             asset = random.choice(assets)
@@ -86,44 +86,30 @@ def populate():
     cursor.executemany("INSERT INTO market_news (headline, source, related_asset_symbols, published_at) VALUES (%s, %s, %s, %s)", news_data)
     conn.commit()
 
-    # 5. Generate 28,000+ Transactions (High Volume Stress Test)
-    print("Generating ~28,000 transactions (Whale/HFT Simulation)...")
+    # 5. Generate 40,000+ Transactions (80+ per Portfolio)
+    print("Generating ~40,000 transactions (Institutional Ledger Flood)...")
     transactions_data = []
     
-    # Split users into 'Standard' and 'Whales'
-    random.shuffle(portfolios)
-    whales = portfolios[:50]  # 10% are whales
-    standard = portfolios[50:]
-    
-    # Standard users (approx 30 trades each = 13,500)
-    for p in standard:
+    for p in portfolios:
         pid = p['portfolio_id']
-        selected_assets = random.sample(assets, 10)
-        for asset in selected_assets:
+        # Each portfolio gets 80-100 trades
+        num_trades = random.randint(80, 95)
+        
+        # Pick 20 assets for this user's active universe
+        user_assets = random.sample(assets, 20)
+        
+        for _ in range(num_trades):
+            asset = random.choice(user_assets)
             aid = asset['asset_id']
-            curr_price = float(asset['current_price'])
-            buy_date = datetime.now() - timedelta(days=random.randint(150, 180))
-            hist_price = curr_price * random.uniform(0.85, 1.15)
-            transactions_data.append((pid, aid, 'BUY', random.randint(5, 50), hist_price, buy_date))
+            # Scattering trades across 365 days
+            act_date = datetime.now() - timedelta(days=random.randint(1, 365))
+            price = float(asset['current_price']) * random.uniform(0.75, 1.25)
+            qty = random.randint(1, 500)
+            t_type = random.choice(['BUY', 'SELL'])
             
-            # 2 random follow-up trades
-            for _ in range(2):
-                activity_date = buy_date + timedelta(days=random.randint(5, 120))
-                if activity_date < datetime.now():
-                    transactions_data.append((pid, aid, random.choice(['BUY', 'SELL']), random.randint(1, 10), hist_price * random.uniform(0.95, 1.05), activity_date))
+            transactions_data.append((pid, aid, t_type, qty, price, act_date))
 
-    # Whales (approx 300 trades each = 15,000)
-    print("Concentrating whale activity (High-Frequency clusters)...")
-    for p in whales:
-        pid = p['portfolio_id']
-        for _ in range(300):
-            asset = random.choice(assets)
-            aid = asset['asset_id']
-            act_date = datetime.now() - timedelta(days=random.randint(1, 180))
-            price = float(asset['current_price']) * random.uniform(0.8, 1.2)
-            transactions_data.append((pid, aid, random.choice(['BUY', 'SELL']), random.randint(100, 1000), price, act_date))
-
-    print(f"Executing batch insert of {len(transactions_data)} ledger entries...")
+    print(f"Executing deep batch insert of {len(transactions_data)} ledger entries...")
     batch_size = 2000
     for i in range(0, len(transactions_data), batch_size):
         batch = transactions_data[i:i + batch_size]
@@ -132,13 +118,10 @@ def populate():
             "VALUES (%s, %s, %s, %s, %s, %s)", batch
         )
         conn.commit()
-        print(f"  Processed {i + len(batch)} ledger updates...")
+        print(f"  Processed {i + len(batch)} ledger updates (State: Agitation)...")
 
     conn.close()
-    print("AXIOM HIGH-VOLUME DATA ENGINE: Stress Test Population Complete!")
-
-if __name__ == "__main__":
-    populate()
+    print("AXIOM EXTREME DATA ENGINE: Stress Test Population Complete!")
 
 if __name__ == "__main__":
     populate()
