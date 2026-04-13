@@ -4,6 +4,7 @@ import sqlite3
 import mysql.connector
 import os
 import random
+import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from market_engine import update_market_prices
@@ -18,14 +19,29 @@ DB_PATH = "portfolio.db"
 def get_db_connection():
     # Detect if we should use MySQL (env vars present)
     if os.getenv("MYSQL_HOST"):
+        # PRODUCTION HARDENING: Handle SSL CA path for cloud deployment
+        ssl_ca = os.getenv("MYSQL_SSL_CA")
+        verify_cert = True
+        
+        if ssl_ca:
+            if not os.path.exists(ssl_ca):
+                # Fallback to local file if absolute path fails
+                ssl_ca = os.path.join(os.path.dirname(__file__), "ca.pem")
+            if not os.path.exists(ssl_ca):
+                # If still not found, we cannot verify cert
+                verify_cert = False
+                ssl_ca = None
+        else:
+            verify_cert = False
+            
         return mysql.connector.connect(
             host=os.getenv("MYSQL_HOST"),
             port=int(os.getenv("MYSQL_PORT", 3306)),
             user=os.getenv("MYSQL_USER"),
             password=os.getenv("MYSQL_PASSWORD"),
             database=os.getenv("MYSQL_DB"),
-            ssl_ca=os.getenv("MYSQL_SSL_CA"),
-            ssl_verify_cert=True
+            ssl_ca=ssl_ca,
+            ssl_verify_cert=verify_cert
         )
     else:
         conn = sqlite3.connect(DB_PATH)
@@ -33,19 +49,18 @@ def get_db_connection():
         conn.execute("PRAGMA foreign_keys = ON;")
         return conn
 
+import traceback
+import sys
+
 # Simple cache for market pricing
 last_market_update = datetime.min
 
-def execute_query(conn, query, params=()):
-    cursor = conn.cursor(dictionary=True) if hasattr(conn, 'cursor') and not isinstance(conn, sqlite3.Connection) else conn.cursor()
-    
-    # Convert ? to %s for MySQL if needed
-    if not isinstance(conn, sqlite3.Connection):
-        query = query.replace('?', '%s')
-        
-    cursor.execute(query, params)
-    return cursor
-
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the full traceback to Render logs for debugging
+    print("!!! AXIOM CRITICAL EXCEPTION !!!", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    return f"Axiom Node Critical Error: {str(e)}", 500
 
 @app.route('/')
 def index():
@@ -69,6 +84,10 @@ def index():
     cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
     user = cursor.fetchone()
     
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+        
     if user['role'] == 'admin':
         # Admin visibility
         cursor = conn.cursor(dictionary=True) if not isinstance(conn, sqlite3.Connection) else conn.cursor()
