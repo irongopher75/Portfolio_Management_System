@@ -11,7 +11,9 @@
     <div class="card">
         <div class="card-title">Total Valuation</div>
         <div class="stat-value">₹{{ "{:,.2f}".format(total_valuation) }}</div>
-        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--accent-primary);">Connected Node: AIVEN-MYSQL-01</div>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--accent-primary);">
+            <span class="status-dot active"></span> HANDSHAKE: {{ telemetry.status|upper }}
+        </div>
     </div>
     <div class="card">
         <div class="card-title">Aggregated P/L</div>
@@ -23,7 +25,9 @@
     <div class="card">
         <div class="card-title">System Performance</div>
         <div class="stat-value" style="color: var(--accent-secondary);">{{ performance.status|upper }}</div>
-        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);">Latency: {{ performance.latency }}ms</div>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);">
+            LATENCY: {{ telemetry.latency }}ms // PROTOCOL: {{ telemetry.protocol }}
+        </div>
     </div>
 </div>
 
@@ -47,9 +51,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for holding in holdings %}
+                    {% for holding in holdings[:25] %}
                     <tr>
-                        <td style="font-weight: 600;">{{ holding.symbol }}</td>
+                        <td style="font-weight: 600; color: var(--accent-primary);">{{ holding.symbol }}</td>
                         <td style="font-family: var(--font-mono);">{{ holding.quantity }}</td>
                         <td style="color: var(--text-secondary);">₹{{ "{:,.2f}".format(holding.average_buy_price) }}</td>
                         <td style="font-weight: 600;">₹{{ "{:,.2f}".format(holding.current_price) }}</td>
@@ -139,7 +143,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for tx in transactions %}
+                    {% for tx in transactions[:25] %}
                     <tr>
                         <td>
                             <span class="badge {{ 'badge-success' if tx.transaction_type == 'BUY' else 'badge-danger' }}">

@@ -185,7 +185,27 @@ input:focus { border-color: var(--accent-secondary); }
 .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--accent-primary); }
 .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
 
-/* Animation */
+/* Status Indicators for Connectivity */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.status-dot.active {
+    background-color: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-primary);
+    animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }

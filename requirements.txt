@@ -3,6 +3,5 @@ mysql-connector-python
 python-dotenv
 werkzeug
 gunicorn
-yfinance
 faker
 pandas

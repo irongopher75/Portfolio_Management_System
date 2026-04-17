@@ -9,14 +9,23 @@ load_dotenv()
 DB_PATH = "portfolio.db"
 
 def get_mysql_connection():
+    host = os.getenv("MYSQL_HOST", "localhost")
+    user = os.getenv("MYSQL_USER", "root")
+    password = os.getenv("MYSQL_PASSWORD", "Achieve@2026")
+    database = os.getenv("MYSQL_DB", "portfolio")
+    port = int(os.getenv("MYSQL_PORT", 3306))
+    
+    # SSL is only required for Aiven Cloud Nodes
+    ssl_ca = os.getenv("MYSQL_SSL_CA")
+    use_ssl = ssl_ca and "localhost" not in host
+    
+    if use_ssl:
+        return mysql.connector.connect(
+            host=host, port=port, user=user, password=password, database=database,
+            ssl_ca=ssl_ca, ssl_verify_cert=True
+        )
     return mysql.connector.connect(
-        host=os.getenv("MYSQL_HOST"),
-        port=int(os.getenv("MYSQL_PORT", 3306)),
-        user=os.getenv("MYSQL_USER"),
-        password=os.getenv("MYSQL_PASSWORD"),
-        database=os.getenv("MYSQL_DB"),
-        ssl_ca=os.getenv("MYSQL_SSL_CA"),
-        ssl_verify_cert=True
+        host=host, port=port, user=user, password=password, database=database
     )
 
 def init_sqlite():

@@ -85,7 +85,24 @@ CREATE TABLE market_news (
     news_id INTEGER PRIMARY KEY AUTOINCREMENT,
     headline TEXT NOT NULL,
     source TEXT NOT NULL,
-    related_asset_symbols TEXT
+    related_asset_symbols TEXT,
+    published_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE trade_requests (
+    request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    portfolio_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
+    transaction_type TEXT CHECK(transaction_type IN ('BUY', 'SELL')) NOT NULL,
+    quantity REAL NOT NULL,
+    requested_price REAL NOT NULL,
+    status TEXT CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED')) DEFAULT 'PENDING',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    actioned_at DATETIME,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(portfolio_id) REFERENCES portfolios(portfolio_id) ON DELETE CASCADE,
+    FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
 );
 
 
