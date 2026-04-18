@@ -14,19 +14,25 @@ echo "📡 Step 2: Initializing Handshake Protocol (Flask)..."
 python3 app.py &
 BACKEND_PID=$!
 
-# 3. Start the Public Internet Bridge
-echo "🌐 Step 3: Establishing Public Tunnel (Pulse Protocol)..."
-# Pulse Protocol: ServerAliveInterval=60 sends a pulse every minute to keep the link alive
+# 3. Start the Global Handshake Bridges
+echo "🌐 Step 3: Establishing Dual-Pulse Handshake (Ports 5001 & 3306)..."
+
+# Web Bridge (Port 5001)
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -R 80:localhost:5001 nokey@localhost.run &
-TUNNEL_PID=$!
+WEB_TUNNEL_PID=$!
+
+# Database Bridge (Port 3306)
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -R 80:localhost:3306 nokey@localhost.run &
+DB_TUNNEL_PID=$!
 
 # Cleanup logic to stop everything on Ctrl+C
-trap "kill $BACKEND_PID $TUNNEL_PID; echo -e '\n🛑 Axiom Node Deactivated.'; exit" INT
+trap "kill $BACKEND_PID $WEB_TUNNEL_PID $DB_TUNNEL_PID; echo -e '\n🛑 Axiom Node Deactivated.'; exit" INT
 
-echo "✅ AXIOM NODE IS LIVE."
+echo "✅ AXIOM DUAL-NODE IS LIVE."
 echo "--------------------------------------------------"
-echo "💻 Local Access:  http://127.0.0.1:5001"
-echo "📡 Public Access: (Wait for localhost.run to generate URL below)"
+echo "💻 Local Access:     http://127.0.0.1:5001"
+echo "📡 Terminal Web UI:  (Check first URL below)"
+echo "🗄️ Database Node:    (Check second URL below)"
 echo "--------------------------------------------------"
 echo "Press Ctrl+C to terminate the entire node."
 

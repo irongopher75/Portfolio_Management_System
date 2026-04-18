@@ -98,8 +98,25 @@ def index():
         """)
         portfolios = [dict(row) for row in cursor.fetchall()]
         
-        cursor.execute(f"SELECT * FROM holdings ORDER BY holding_id DESC LIMIT 50")
+        cursor.execute("""
+            SELECT h.*, a.symbol, a.name as asset_name, a.current_price
+            FROM holdings h
+            JOIN assets a ON h.asset_id = a.asset_id
+            ORDER BY h.holding_id DESC LIMIT 50
+        """)
         holdings_raw = [dict(row) for row in cursor.fetchall()]
+        
+        cursor.execute(f"""
+            SELECT t.*, a.symbol as symbol, u.username as owner_name
+            FROM transactions t
+            JOIN assets a ON t.asset_id = a.asset_id
+            JOIN portfolios p ON t.portfolio_id = p.portfolio_id
+            JOIN users u ON p.user_id = u.user_id
+            ORDER BY t.transaction_date DESC LIMIT 50
+        """)
+        transactions = [dict(row) for row in cursor.fetchall()]
+        watchlist = None
+        watchlist_items = []
     else:
         # Standard user: Only fetch their specific holdings from the DB
         cursor.execute(f"SELECT * FROM portfolios WHERE user_id = {q}", (user_id,))
@@ -115,8 +132,31 @@ def index():
                 WHERE h.portfolio_id IN ({p_id_str})
             """)
             holdings_raw = [dict(row) for row in cursor.fetchall()]
+            
+            cursor.execute(f"""
+                SELECT t.*, a.symbol as symbol, p.name as portfolio_name
+                FROM transactions t
+                JOIN assets a ON t.asset_id = a.asset_id
+                JOIN portfolios p ON t.portfolio_id = p.portfolio_id
+                WHERE p.portfolio_id IN ({p_id_str})
+                ORDER BY t.transaction_date DESC LIMIT 15
+            """)
+            transactions = [dict(row) for row in cursor.fetchall()]
         else:
             holdings_raw = []
+            transactions = []
+        
+        cursor.execute(f"SELECT * FROM watchlists WHERE user_id = {q}", (user_id,))
+        watchlist = cursor.fetchone()
+        watchlist_items = []
+        if watchlist:
+            cursor.execute(f"""
+                SELECT a.* 
+                FROM watchlist_items wi
+                JOIN assets a ON wi.asset_id = a.asset_id
+                WHERE wi.watchlist_id = {q}
+            """, (watchlist['watchlist_id'],))
+            watchlist_items = [dict(row) for row in cursor.fetchall()]
 
     # Calculate Totals in SQL for efficiency
     cursor.execute(f"""
