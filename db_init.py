@@ -7,26 +7,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_PATH = "portfolio.db"
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DB = os.getenv("MYSQL_DB", "portfolio")
 
-def get_mysql_connection():
-    host = os.getenv("MYSQL_HOST", "localhost")
-    user = os.getenv("MYSQL_USER", "root")
-    password = os.getenv("MYSQL_PASSWORD", "Achieve@2026")
-    database = os.getenv("MYSQL_DB", "portfolio")
-    port = int(os.getenv("MYSQL_PORT", 3306))
-    
-    # SSL is only required for Aiven Cloud Nodes
-    ssl_ca = os.getenv("MYSQL_SSL_CA")
-    use_ssl = ssl_ca and "localhost" not in host
-    
-    if use_ssl:
-        return mysql.connector.connect(
-            host=host, port=port, user=user, password=password, database=database,
-            ssl_ca=ssl_ca, ssl_verify_cert=True
-        )
-    return mysql.connector.connect(
-        host=host, port=port, user=user, password=password, database=database
-    )
+
+def get_mysql_connection(with_database=True):
+    config = {
+        "host": MYSQL_HOST,
+        "port": MYSQL_PORT,
+        "user": MYSQL_USER,
+        "password": MYSQL_PASSWORD,
+    }
+    if with_database:
+        config["database"] = MYSQL_DB
+    return mysql.connector.connect(**config)
 
 def init_sqlite():
     print(f"Initializing SQLite database at {DB_PATH}...")
@@ -46,58 +43,67 @@ def init_sqlite():
     conn.close()
     print("SQLite Database initialized successfully!")
 
+
+def ensure_mysql_database():
+    conn = get_mysql_connection(with_database=False)
+    cursor = conn.cursor()
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{MYSQL_DB}`")
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def split_mysql_script(script_text):
+    delimiter = ';'
+    buffer = []
+    statements = []
+
+    for raw_line in script_text.splitlines():
+        stripped = raw_line.strip()
+        if stripped.upper().startswith('DELIMITER '):
+            delimiter = stripped.split(None, 1)[1]
+            continue
+
+        buffer.append(raw_line)
+        current = "\n".join(buffer).rstrip()
+        if current.endswith(delimiter):
+            statement = current[:-len(delimiter)].strip()
+            if statement:
+                statements.append(statement)
+            buffer = []
+
+    trailing = "\n".join(buffer).strip()
+    if trailing:
+        statements.append(trailing)
+
+    return statements
+
+
 def init_mysql():
-    print("Initializing Aiven MySQL database...")
+    print(f"Initializing MySQL database '{MYSQL_DB}' on {MYSQL_HOST}:{MYSQL_PORT}...")
+    ensure_mysql_database()
     conn = get_mysql_connection()
     cursor = conn.cursor()
-    
+
     schema_path = os.path.join(os.path.dirname(__file__), "schema_mysql.sql")
     with open(schema_path, 'r') as f:
         schema_sql = f.read()
-    
-    # Advanced parsing to handle triggers and blocks
-    print("Executing MySQL Schema (Axiom Production Mode)...")
-    
-    # 1. Strip out DELIMITER lines
-    lines = [l for l in schema_sql.splitlines() if not l.strip().upper().startswith('DELIMITER')]
-    
-    # 2. Join lines back and split by ';' for regular statements, 
-    # but be careful NOT to split inside triggers (END //)
-    full_sql = "\n".join(lines)
-    
-    # We substitute '//' with a unique marker to avoid splitting trigger contents
-    # Then we split by ';' first, then handle the trigger blocks
-    parts = full_sql.split(';')
-    final_statements = []
-    
-    current_block = []
-    in_trigger = False
-    
-    for part in parts:
-        clean_part = part.strip()
-        if not clean_part: continue
-        
-        # If we see // it means we are in the trigger section
-        if '//' in clean_part:
-            # Clean up the // markers and add as a single statement
-            stmt = clean_part.replace('//', '').strip()
-            if stmt: final_statements.append(stmt)
-        else:
-            final_statements.append(clean_part)
 
-    for stmt in final_statements:
+    statements = split_mysql_script(schema_sql)
+
+    for stmt in statements:
         try:
             cursor.execute(stmt)
-        except Exception as e:
-            # Report but don't crash on 'already exists' for drop statements
-            if "already exists" not in str(e).lower() and "unknown table" not in str(e).lower():
-                print(f"Statement Warning: {e}")
-                print(f"Context: {stmt[:100]}...")
-    
+        except Exception as exc:
+            cursor.close()
+            conn.close()
+            raise RuntimeError(f"MySQL schema initialization failed: {exc}\nContext: {stmt[:200]}...") from exc
+
     conn.commit()
     seed_data(cursor, conn, is_sqlite=False)
+    cursor.close()
     conn.close()
-    print("MySQL Database initialized successfully!")
+    print("MySQL database initialized successfully!")
 
 def seed_data(cursor, conn, is_sqlite=True):
     print("Seeding initial users and assets...")
@@ -150,7 +156,7 @@ def seed_data(cursor, conn, is_sqlite=True):
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "--mysql":
-        init_mysql()
-    else:
+    if len(sys.argv) > 1 and sys.argv[1] == "--sqlite":
         init_sqlite()
+    else:
+        init_mysql()

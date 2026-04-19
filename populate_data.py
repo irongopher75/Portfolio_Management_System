@@ -1,6 +1,5 @@
 import os
 import random
-import time
 from datetime import datetime, timedelta
 from faker import Faker
 from werkzeug.security import generate_password_hash
@@ -9,20 +8,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 fake = Faker()
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DB = os.getenv("MYSQL_DB", "portfolio")
 
 def get_db_connection():
     return mysql.connector.connect(
-        host=os.getenv("MYSQL_HOST"),
-        port=int(os.getenv("MYSQL_PORT", 3306)),
-        user=os.getenv("MYSQL_USER"),
-        password=os.getenv("MYSQL_PASSWORD"),
-        database=os.getenv("MYSQL_DB"),
-        ssl_ca=os.getenv("MYSQL_SSL_CA"),
-        ssl_verify_cert=True
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DB,
     )
 
 def populate():
-    print("AXIOM EXTREME DATA ENGINE: Starting population (40,000+ Transaction Stress Test)...")
+    print("AXIOM EXTREME DATA ENGINE: Starting population (MySQL stress test)...")
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -30,7 +32,7 @@ def populate():
     cursor.execute("SELECT asset_id, symbol, current_price FROM assets WHERE symbol LIKE '%.NS'")
     assets = cursor.fetchall()
     if not assets:
-        print("Error: No NSE assets found. Run db_init.py --mysql first.")
+        print("Error: No NSE assets found. Run python3 db_init.py first.")
         return
     
     # 2. Generate 500 Users

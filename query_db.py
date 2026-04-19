@@ -1,19 +1,23 @@
-import sqlite3
+import mysql.connector
 import os
 import sys
 
-DB_PATH = "portfolio.db"
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DB = os.getenv("MYSQL_DB", "portfolio")
 
 def get_db_connection():
-    if not os.path.exists(DB_PATH):
-        print(f"Error: Database file '{DB_PATH}' not found. Run 'python3 db_init.py' first.")
-        return None
-        
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        return conn
-    except sqlite3.Error as err:
+        return mysql.connector.connect(
+            host=MYSQL_HOST,
+            port=MYSQL_PORT,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DB,
+        )
+    except mysql.connector.Error as err:
         print(f"Error connecting to database: {err}")
         return None
 
@@ -53,7 +57,7 @@ def execute_query(query):
             conn.commit()
             print(f"\nQuery successful. {cursor.rowcount} rows affected.\n")
             
-    except sqlite3.Error as err:
+    except mysql.connector.Error as err:
         print(f"SQL Error: {err}")
     finally:
         cursor.close()
@@ -66,7 +70,7 @@ if __name__ == "__main__":
         execute_query(query)
     else:
         # Interactive mode
-        print("AXIOM SQL Terminal Shell (SQLite) (Type 'exit' to quit)")
+        print("AXIOM SQL Terminal Shell (MySQL) (Type 'exit' to quit)")
         print("-" * 40)
         while True:
             try:

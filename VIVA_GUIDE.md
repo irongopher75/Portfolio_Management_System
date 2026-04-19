@@ -1,55 +1,43 @@
-# Axiom Technical Guide: The "Personal Node" Connectivity
+# Axiom Technical Guide: Local MySQL Architecture
 
-This document provides conceptual and technical guidance for your Viva exam. It explains how your project achieves **Real-Time Connectivity** without relying on third-party cloud managed services (like Aiven).
+This project now runs on a local MySQL database. There is no cloud-database dependency or Aiven certificate requirement in the current architecture.
 
-## 🚀 The Core Conceptual Shift
-During the Viva, when asked about "Connectivity," you are demonstrating a **Distributed Client-Server Architecture**:
-1.  **The Server (Your Laptop)**: Your laptop hosts the MySQL Database. 
-2.  **The Client (Faculty Laptop)**: The faculty runs your code on their machine. It connects "Over the Wire" to your laptop.
-3.  **The Reflection**: When the faculty submits a trade, the data travels across the network to your machine, which then broadcasts the update back to any other connected clients.
+## Core explanation
 
----
+During the viva, you can describe the project like this:
 
-## 🛠️ Connectivity Talking Points (VIVA Checklist)
+1. The Flask application and the MySQL database run together on the same machine.
+2. The application connects directly to a local MySQL server running on the same machine.
+3. This keeps the system simpler, easier to demo, and less likely to fail because of network or cloud issues.
 
-| Topic | Explanation for the Examiner |
+## Suggested talking points
+
+| Topic | Explanation |
 | :--- | :--- |
-| **Driver Handshake** | "We use `mysql-connector-python` to establish a TCP/IP socket connection between the Flask application and the Data Engine." |
-| **Hybrid Mode** | "The system is designed with a fallback mechanism. It prioritizes the remote MySQL node for shared state but can failover to local SQLite if the network is interrupted." |
-| **Handshake Latency** | "I implemented a real-time telemetry system that measures the 'Round-Trip Time' (RTT) of the database handshake in milliseconds, visible on the Admin Dashboard." |
-| **Socket Tunneling** | "To satisfy the 'No External API/Service' constraint while allowing cross-machine sync, we use a Socket Tunneling protocol (like Ngrok) to expose our private internal port 3306 to the public network." |
+| **Architecture** | "The system now uses a local MySQL database, so the app and database run together on the same machine." |
+| **Reliability** | "Removing the remote database path reduced failures caused by network latency, unreachable hosts, and certificate issues." |
+| **Data Access** | "Flask connects directly to the local MySQL instance using `mysql-connector-python`." |
+| **Deployment** | "For production-style hosting, the app runs behind Gunicorn instead of the Flask development server." |
+| **Monitoring** | "The app includes a `/healthz` route to verify that the service and database are both available." |
 
----
+## Demo setup
 
-## 🔧 Viva Setup Procedure
+1. Ensure local MySQL is running.
+2. Initialize the local database:
+   ```bash
+   python3 db_init.py
+   ```
+3. Start the application:
+   ```bash
+   python3 app.py
+   ```
+4. Open the app in the browser:
+   ```text
+   http://127.0.0.1:5001
+   ```
 
-To show the "Reflection" feature where changes appear on another machine:
+## Notes for evaluation
 
-### 1. Host the Database
-*   Ensure MySQL is running on your machine (XAMPP / MySQL standalone).
-*   Run the initialization: `python3 db_init.py --mysql`
-*   **Note**: I have pre-configured `db_init.py` to use your `root` user and the password you provided.
-
-### 2. Expose the Tunnel (For Remote Viva)
-*   Download **Ngrok**.
-*   In your terminal, run: `ngrok tcp 3306`
-*   Copy the URL it gives you (e.g., `0.tcp.in.ngrok.io:12345`).
-
-### 3. Share the Connection
-*   In the project folder, update the `.env` file:
-    ```env
-    MYSQL_HOST=0.tcp.in.ngrok.io (or your tunnel host)
-    MYSQL_PORT=12345 (the port from ngrok)
-    MYSQL_USER=root
-    MYSQL_PASSWORD=...
-    MYSQL_DB=portfolio_db
-    ```
-*   When your teacher runs the app on their laptop using these `.env` values, they will be "Connecting" directly to **your hardware**.
-
----
-
-## 📡 Diagnostic Dashboard
-I have added a **Connectivity Telemetry Pod** to the Audit Logs page. 
-*   **HANDSHAKE: ACTIVE**: Confirms the network socket is open.
-*   **DATA PROTOCOL**: Shows whether you are using TCP/IP (MySQL) or File I/O (SQLite).
-*   **LATENCY**: Proves you are measuring real-time network performance.
+- The database is local, so changes are stored in the local MySQL instance on the same machine.
+- There is no dependency on remote database services, tunnels, or certificate files anymore.
+- This architecture is intentionally simpler and better suited for a stable local demonstration.

@@ -1,38 +1,90 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import check_password_hash
+from werkzeug.exceptions import HTTPException
 import sqlite3
 import mysql.connector
 import os
 import random
+import secrets
 import time
+import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 
-DB_PATH = "portfolio.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.getenv("SQLITE_DB_PATH", os.path.join(BASE_DIR, "portfolio.db"))
+DB_BACKEND = os.getenv("DB_BACKEND", "mysql").strip().lower()
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost").strip()
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DB = os.getenv("MYSQL_DB", "portfolio")
+MYSQL_CONNECT_TIMEOUT = int(os.getenv("MYSQL_CONNECT_TIMEOUT", 10))
+DEFAULT_PORT = int(os.getenv("PORT", 5001))
+
+app.logger.setLevel(logging.INFO)
+
+
+def close_quietly(resource):
+    if resource is None:
+        return
+    try:
+        resource.close()
+    except Exception:
+        app.logger.debug("Ignoring close failure", exc_info=True)
+
+
+def generate_csrf_token():
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_hex(32)
+        session['_csrf_token'] = token
+    return token
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': generate_csrf_token}
+
+
+@app.before_request
+def protect_post_requests():
+    if request.method != 'POST':
+        return
+
+    expected_token = session.get('_csrf_token')
+    provided_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+    if not expected_token or not provided_token or not secrets.compare_digest(provided_token, expected_token):
+        return "Invalid or missing CSRF token.", 400
+
 
 def get_db_connection():
-    # VIVA MODE: Hybrid connectivity to show socket handshakes vs local files
-    host = os.getenv("MYSQL_HOST")
-    if host:
-        try:
-            return mysql.connector.connect(
-                host=host,
-                port=int(os.getenv("MYSQL_PORT", 3306)),
-                user="root", # Aligned with student's local setup
-                password="Achieve@2026",
-                database=os.getenv("MYSQL_DB", "portfolio_db")
-            )
-        except Exception as e:
-            print(f"Handshake failed: {e}. Falling back to node-local SQLite.")
-            
-    conn = sqlite3.connect(DB_PATH)
+    if DB_BACKEND == "mysql":
+        return mysql.connector.connect(
+            host=MYSQL_HOST,
+            port=MYSQL_PORT,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DB,
+            connection_timeout=MYSQL_CONNECT_TIMEOUT,
+            autocommit=False,
+        )
+
+    conn = sqlite3.connect(DB_PATH, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA busy_timeout = 10000;")
     return conn
 
 def get_db_cursor(conn):
@@ -40,23 +92,20 @@ def get_db_cursor(conn):
         return conn.cursor(), "?"
     return conn.cursor(dictionary=True), "%s"
 
-import traceback
-import sys
-
 def get_telemetry(conn):
     start_time = time.time()
-    # Simple handshake verification
-    cursor = conn.cursor()
+    cursor, _ = get_db_cursor(conn)
     cursor.execute("SELECT 1")
     cursor.fetchone()
+    close_quietly(cursor)
     latency_ms = int((time.time() - start_time) * 1000)
-    
     is_mysql = not isinstance(conn, sqlite3.Connection)
+
     return {
         'protocol': 'TCP/IP (MySQL)' if is_mysql else 'File I/O (SQLite)',
-        'host': 'localhost' if is_mysql else 'Local Node',
+        'host': MYSQL_HOST if is_mysql else 'Local Node',
         'latency': latency_ms,
-        'status': 'Synchronized' if is_mysql else 'Offline Node'
+        'status': 'Local MySQL Active' if is_mysql else 'Local SQLite Active'
     }
 
 # Simple cache for market pricing
@@ -64,10 +113,31 @@ last_market_update = datetime.min
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    # Log the full traceback to Render logs for debugging
-    print("!!! AXIOM CRITICAL EXCEPTION !!!", file=sys.stderr)
-    traceback.print_exc(file=sys.stderr)
-    return f"Axiom Node Critical Error: {str(e)}", 500
+    if isinstance(e, HTTPException):
+        return e
+    app.logger.error("!!! AXIOM CRITICAL EXCEPTION !!!", exc_info=True)
+    if app.debug:
+        return f"Axiom Node Critical Error: {str(e)}", 500
+    return "Axiom Node Critical Error. Check server logs for details.", 500
+
+
+@app.route('/healthz')
+def healthz():
+    conn = None
+    try:
+        conn = get_db_connection()
+        telemetry = get_telemetry(conn)
+        return jsonify({
+            "status": "ok",
+            "database": telemetry['protocol'],
+            "host": telemetry['host'],
+            "latency_ms": telemetry['latency'],
+        }), 200
+    except Exception:
+        app.logger.error("Health check failed", exc_info=True)
+        return jsonify({"status": "error"}), 503
+    finally:
+        close_quietly(conn)
 
 @app.route('/')
 def index():
@@ -84,6 +154,8 @@ def index():
     user = cursor.fetchone()
     
     if not user:
+        close_quietly(cursor)
+        close_quietly(conn)
         session.clear()
         return redirect(url_for('login'))
         
@@ -243,10 +315,17 @@ def manage_holding():
     transaction_type = 'BUY' if action == 'add' else 'SELL'
     
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
     cursor, q = get_db_cursor(conn)
     try:
+        cursor.execute(
+            f"SELECT portfolio_id FROM portfolios WHERE portfolio_id = {q} AND user_id = {q}",
+            (portfolio_id, session['user_id']),
+        )
+        portfolio = cursor.fetchone()
+        if not portfolio:
+            flash('Unauthorized portfolio access.', 'danger')
+            return redirect(url_for('index'))
+
         # PIVOT: Instead of direct transaction, we insert a trade request
         cursor.execute(f"""
             INSERT INTO trade_requests (user_id, portfolio_id, asset_id, transaction_type, quantity, requested_price, status) 
@@ -281,29 +360,55 @@ def admin_requests():
     """)
     pending_requests = [dict(row) for row in cursor.fetchall()]
     
-    cursor.close()
+    close_quietly(cursor)
     connection_meta = get_telemetry(conn)
-    conn.close()
+    close_quietly(conn)
     return render_template('admin_requests.html', requests=pending_requests, telemetry=connection_meta)
 
-@app.route('/admin/requests/action/<int:request_id>/<action>')
-def action_trade_request(request_id, action):
+@app.route('/admin/requests/action/<int:request_id>', methods=['POST'])
+def action_trade_request(request_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
+
+    action = request.form.get('action')
+    if action not in ('approve', 'reject'):
+        flash("Invalid admin action.", "danger")
+        return redirect(url_for('admin_requests'))
         
     conn = get_db_connection()
     cursor, q = get_db_cursor(conn)
+    is_mysql = not isinstance(conn, sqlite3.Connection)
     
     # 1. Fetch request details
     cursor.execute(f"SELECT * FROM trade_requests WHERE request_id = {q}", (request_id,))
     req = cursor.fetchone()
     
     if not req or req['status'] != 'PENDING':
+        close_quietly(cursor)
+        close_quietly(conn)
         flash("Invalid request code or already actioned.", "danger")
         return redirect(url_for('admin_requests'))
         
     if action == 'approve':
         try:
+            if req['transaction_type'] == 'SELL':
+                holding_query = f"""
+                    SELECT quantity
+                    FROM holdings
+                    WHERE portfolio_id = {q} AND asset_id = {q}
+                    {'FOR UPDATE' if is_mysql else ''}
+                """
+                cursor.execute(holding_query, (req['portfolio_id'], req['asset_id']))
+                holding = cursor.fetchone()
+                available_quantity = float(holding['quantity']) if holding else 0.0
+                if available_quantity + 1e-9 < float(req['quantity']):
+                    conn.rollback()
+                    flash(
+                        f"Approval blocked: requested sell quantity exceeds holdings ({available_quantity:.4f} available).",
+                        "danger",
+                    )
+                    return redirect(url_for('admin_requests'))
+
             # Commit to actual transaction ledger
             cursor.execute(f"""
                 INSERT INTO transactions (portfolio_id, asset_id, transaction_type, quantity, price_per_unit, transaction_date)
@@ -330,8 +435,8 @@ def action_trade_request(request_id, action):
         conn.commit()
         flash(f"Transaction protocol {request_id} REJECTED.", "warning")
 
-    cursor.close()
-    conn.close()
+    close_quietly(cursor)
+    close_quietly(conn)
     return redirect(url_for('admin_requests'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -344,20 +449,21 @@ def login():
         cursor, q = get_db_cursor(conn)
         cursor.execute(f"SELECT * FROM users WHERE username = {q}", (username,))
         user = cursor.fetchone()
-        cursor.close()
-        conn.close()
+        close_quietly(cursor)
+        close_quietly(conn)
         
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['user_id']
             session['username'] = user['username']
             session['role'] = user['role']
+            session['_csrf_token'] = secrets.token_hex(32)
             return redirect(url_for('index'))
         else:
             flash('Invalid credentials.', 'danger')
             
     conn = get_db_connection()
     connection_meta = get_telemetry(conn)
-    conn.close()
+    close_quietly(conn)
     return render_template('login.html', telemetry=connection_meta)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -373,6 +479,8 @@ def register():
         # Check if user exists
         cursor.execute(f"SELECT * FROM users WHERE username = {q}", (username,))
         if cursor.fetchone():
+            close_quietly(cursor)
+            close_quietly(conn)
             flash("Operative identity already registered.", "danger")
             return redirect(url_for('register'))
             
@@ -381,12 +489,14 @@ def register():
         
         cursor.execute(f"INSERT INTO users (username, email, password_hash, role) VALUES ({q}, {q}, {q}, 'user')", (username, email, password_hash))
         conn.commit()
-        cursor.close()
-        conn.close()
+        close_quietly(cursor)
+        close_quietly(conn)
+        flash("Registration successful. Please log in.", "success")
+        return redirect(url_for('login'))
         
     conn = get_db_connection()
     connection_meta = get_telemetry(conn)
-    conn.close()
+    close_quietly(conn)
     return render_template('register.html', telemetry=connection_meta)
 
 @app.route('/logout')
@@ -412,9 +522,9 @@ def admin_audit():
     cursor.execute(f"SELECT * FROM users WHERE user_id = {q}", (session['user_id'],))
     user = cursor.fetchone()
     
-    cursor.close()
+    close_quietly(cursor)
     connection_meta = get_telemetry(conn)
-    conn.close()
+    close_quietly(conn)
     return render_template('admin.html', logs=logs, user=user, telemetry=connection_meta)
 
 @app.route('/admin/sql-console', methods=['GET', 'POST'])
@@ -472,20 +582,20 @@ def sql_console():
         tables = []
         if not error: error = f"Table refresh error: {str(e)}"
     
-    cursor.close()
-    conn.close()
+    close_quietly(cursor)
+    close_quietly(conn)
     
     # Get user for header
     conn = get_db_connection()
     cursor, q = get_db_cursor(conn)
     cursor.execute(f"SELECT * FROM users WHERE user_id = {q}", (session['user_id'],))
     user = cursor.fetchone()
-    cursor.close()
+    close_quietly(cursor)
     connection_meta = get_telemetry(conn)
-    conn.close()
+    close_quietly(conn)
     
     return render_template('sql_console.html', tables=tables, results=results, columns=columns, error=error, query=query, user=user, telemetry=connection_meta)
 
 if __name__ == '__main__':
-    # GLOBAL NODE MODE: Bind to 0.0.0.0 to allow incoming connections from other devices
-    app.run(host='0.0.0.0', debug=True, port=5001)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', debug=debug_mode, port=DEFAULT_PORT)

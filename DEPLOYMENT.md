@@ -1,37 +1,66 @@
-# Axiom Terminal | Collaborative Submission Protocol
+# Deployment Guide
 
-This document outlines the procedure for shared evaluation of the Axiom Terminal. Per faculty requirements, the system operates in **Offline Mode** with no external API dependencies and uses **SQLite** as the unified data source.
+This project uses a local MySQL database as the primary data store. Cloud-database and Aiven-specific certificate setup are not required.
 
-## 🚀 Shared Evaluation Model
+## Recommended start command
 
-To ensure "reflect to another user" functionality without cloud services, the database state is synchronized directly via the repository.
+If your host supports a `Procfile`, it will automatically use:
 
-### Step 1: Clone and Synchronize
-1.  **Clone the Repo**: Faculty or peers should clone the repository.
-2.  **Existing Data**: The `portfolio.db` file is included in the repo. You will see all current holdings and users immediately upon startup.
+```bash
+gunicorn -c gunicorn.conf.py app:app
+```
 
-### Step 2: Making Changes (Sync Protocol)
-Since there is no cloud database, you must manually commit the data state:
-1.  **Interact**: Log in as `admin` or a `user` and perform trades or approvals.
-2.  **Save State**:
-    ```bash
-    git add portfolio.db
-    git commit -m "Updated portfolio state (Handshake approved)"
-    git push origin main
-    ```
-3.  **Reflect**: The other user simply runs `git pull` to see your latest database changes.
+If you need to enter the command manually, use the same command above.
 
-## 🔐 Local Environment Setup
-1. **Runtime**: Python 3.12+
-2. **Installation**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Run Node**:
-   ```bash
-   python3 app.py
-   ```
+## Environment variables
 
-## 🛠️ Data Infrastructure
-*   **Static Assets**: Market prices are "frozen" at their last official fetch to comply with the "No-API" requirement.
-*   **SQL Console**: Admins can still use the built-in Console to manually adjust asset prices or schema directly in the browser.
+Set these in your deployment platform:
+
+```env
+SECRET_KEY=replace-this-with-a-long-random-value
+DB_BACKEND=mysql
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your-local-mysql-password
+MYSQL_DB=portfolio
+PORT=10000
+```
+
+Optional:
+
+```env
+SESSION_COOKIE_SECURE=true
+FLASK_DEBUG=false
+WEB_CONCURRENCY=2
+GUNICORN_THREADS=4
+```
+
+## Health check
+
+Point your platform health check to:
+
+```text
+/healthz
+```
+
+## Why this is more stable
+
+- Gunicorn runs the app instead of the Flask development server.
+- Worker recycling is enabled to reduce long-running process instability.
+- `SECRET_KEY` stays stable across restarts when set in the environment.
+- The app now uses local MySQL consistently instead of drifting between engines.
+
+## Local run
+
+```bash
+pip install -r requirements.txt
+python3 db_init.py
+python3 app.py
+```
+
+For a production-like local run:
+
+```bash
+gunicorn -c gunicorn.conf.py app:app
+```

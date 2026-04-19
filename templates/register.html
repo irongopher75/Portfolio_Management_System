@@ -9,6 +9,7 @@
         </div>
 
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="margin-bottom: 1.2rem;">
                 <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px;">Desired Identity</label>
                 <input type="text" name="username" style="width: 100%; box-sizing: border-box;" placeholder="Choose username..." required>

@@ -42,14 +42,17 @@
                     <td>₹{{ "{:,.2f}".format(req.requested_price) }}</td>
                     <td style="font-size: 0.75rem; color: var(--text-secondary);">{{ req.created_at }}</td>
                     <td style="text-align: right;">
-                        <a href="{{ url_for('action_trade_request', request_id=req.request_id, action='approve') }}" 
-                           class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--success); margin-right: 0.5rem;">
-                           APPROVE
-                        </a>
-                        <a href="{{ url_for('action_trade_request', request_id=req.request_id, action='reject') }}" 
-                           class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--danger);">
-                           REJECT
-                        </a>
+                        <form method="POST" action="{{ url_for('action_trade_request', request_id=req.request_id) }}" style="display: inline-flex; gap: 0.5rem; margin: 0;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" name="action" value="approve"
+                                    class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--success);">
+                                APPROVE
+                            </button>
+                            <button type="submit" name="action" value="reject"
+                                    class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: var(--danger);">
+                                REJECT
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
