@@ -1,0 +1,17 @@
+[2026-04-20 09:59:03 +0530] [54229] [INFO] Starting gunicorn 25.3.0
+[2026-04-20 09:59:03 +0530] [54229] [INFO] Listening at: http://0.0.0.0:5001 (54229)
+[2026-04-20 09:59:03 +0530] [54229] [INFO] Using worker: gthread
+[2026-04-20 09:59:03 +0530] [54232] [INFO] Booting worker with pid: 54232
+[2026-04-20 09:59:03 +0530] [54233] [INFO] Booting worker with pid: 54233
+[2026-04-20 09:59:03 +0530] [54229] [INFO] Control socket listening at /Users/vishnupanicker/.gunicorn/gunicorn.ctl
+127.0.0.1 - - [20/Apr/2026:09:59:04 +0530] "GET /healthz HTTP/1.1" 200 78 "-" "curl/8.7.1"
+127.0.0.1 - - [20/Apr/2026:09:59:14 +0530] "HEAD / HTTP/1.1" 302 0 "-" "curl/8.7.1"
+127.0.0.1 - - [20/Apr/2026:09:59:57 +0530] "GET / HTTP/1.1" 302 199 "https://axiom-terminal-stable-viva.loca.lt/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:09:59:58 +0530] "GET /login HTTP/1.1" 200 2687 "https://axiom-terminal-stable-viva.loca.lt/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:10:00:00 +0530] "GET /static/style.css HTTP/1.1" 200 0 "https://axiom-terminal-stable-viva.loca.lt/login" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:10:01:10 +0530] "POST /login HTTP/1.1" 302 189 "https://axiom-terminal-stable-viva.loca.lt/login" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:10:01:15 +0530] "GET / HTTP/1.1" 200 42346 "https://axiom-terminal-stable-viva.loca.lt/login" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:10:01:20 +0530] "GET /static/style.css HTTP/1.1" 304 0 "https://axiom-terminal-stable-viva.loca.lt/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15"
+127.0.0.1 - - [20/Apr/2026:10:01:23 +0530] "GET /apple-touch-icon-precomposed.png HTTP/1.1" 404 207 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari"
+127.0.0.1 - - [20/Apr/2026:10:01:24 +0530] "GET /apple-touch-icon.png HTTP/1.1" 404 207 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari"
+127.0.0.1 - - [20/Apr/2026:10:01:24 +0530] "GET /favicon.ico HTTP/1.1" 404 207 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari"

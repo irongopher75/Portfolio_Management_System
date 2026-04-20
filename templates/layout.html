@@ -26,6 +26,9 @@
                 <a href="{{ url_for('admin_requests') }}" class="nav-item {% if request.endpoint == 'admin_requests' %}active{% endif %}">
                     Surveillance Queue
                 </a>
+                <a href="{{ url_for('admin_intel') }}" class="nav-item {% if request.endpoint == 'admin_intel' %}active{% endif %}">
+                    Institutional Intel
+                </a>
                 <a href="{{ url_for('sql_console') }}" class="nav-item {% if request.endpoint == 'sql_console' %}active{% endif %}">
                     Surveillance Explorer
                 </a>

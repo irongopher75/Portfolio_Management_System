@@ -95,6 +95,7 @@ def get_db_cursor(conn):
 def get_telemetry(conn):
     start_time = time.time()
     cursor, _ = get_db_cursor(conn)
+    # [Q01] Connection Telemetry Handshake
     cursor.execute("SELECT 1")
     cursor.fetchone()
     close_quietly(cursor)
@@ -150,6 +151,7 @@ def index():
     connection_meta = get_telemetry(conn)
     
     cursor, q = get_db_cursor(conn)
+    # [Q02] User Identity Verification
     cursor.execute(f"SELECT * FROM users WHERE user_id = {q}", (user_id,))
     user = cursor.fetchone()
     
@@ -162,6 +164,7 @@ def index():
     # Optimized Data Fetching for Institutional High-Scale (10,000+ records)
     if user['role'] == 'admin':
         # Admin gets a summary view of all portfolios (No huge loops)
+        # [Q03] Institutional Portfolio Summary (Admin)
         cursor.execute("""
             SELECT p.*, u.username as owner_name 
             FROM portfolios p
@@ -170,6 +173,7 @@ def index():
         """)
         portfolios = [dict(row) for row in cursor.fetchall()]
         
+        # [Q04] Global Holdings Surveillance (Admin)
         cursor.execute("""
             SELECT h.*, a.symbol, a.name as asset_name, a.current_price
             FROM holdings h
@@ -178,6 +182,8 @@ def index():
         """)
         holdings_raw = [dict(row) for row in cursor.fetchall()]
         
+        # [Q05] Global Transaction Ledger (Admin)
+        # [Q05] Global Transaction Ledger (Admin)
         cursor.execute(f"""
             SELECT t.*, a.symbol as symbol, u.username as owner_name
             FROM transactions t
@@ -191,12 +197,14 @@ def index():
         watchlist_items = []
     else:
         # Standard user: Only fetch their specific holdings from the DB
+        # [Q06] Local Portfolio Node Fetch (User)
         cursor.execute(f"SELECT * FROM portfolios WHERE user_id = {q}", (user_id,))
         portfolios = [dict(row) for row in cursor.fetchall()]
         
         my_p_ids = [str(p['portfolio_id']) for p in portfolios]
         if my_p_ids:
             p_id_str = ",".join(my_p_ids)
+            # [Q07] Relational Holdings Join (User)
             cursor.execute(f"""
                 SELECT h.*, a.symbol, a.name as asset_name, a.current_price
                 FROM holdings h
@@ -205,6 +213,7 @@ def index():
             """)
             holdings_raw = [dict(row) for row in cursor.fetchall()]
             
+            # [Q08] Filtered Transaction Stream (User)
             cursor.execute(f"""
                 SELECT t.*, a.symbol as symbol, p.name as portfolio_name
                 FROM transactions t
@@ -218,10 +227,12 @@ def index():
             holdings_raw = []
             transactions = []
         
+        # [Q09] Watchlist Identity Fetch
         cursor.execute(f"SELECT * FROM watchlists WHERE user_id = {q}", (user_id,))
         watchlist = cursor.fetchone()
         watchlist_items = []
         if watchlist:
+            # [Q10] Watchlist Item Asset Join
             cursor.execute(f"""
                 SELECT a.* 
                 FROM watchlist_items wi
@@ -231,6 +242,7 @@ def index():
             watchlist_items = [dict(row) for row in cursor.fetchall()]
 
     # Calculate Totals in SQL for efficiency
+    # [Q11] Real-Time Portfolio Aggregate Calculation
     cursor.execute(f"""
         SELECT 
             COALESCE(SUM(h.quantity * a.current_price), 0) as market_value,
@@ -264,12 +276,15 @@ def index():
         p['value_class'] = 'text-success' if p['is_profit'] else 'text-danger'
 
     # Market News & System Performance
+    # [Q12] Asset Inventory Listing
     cursor.execute("SELECT * FROM assets ORDER BY symbol")
     assets_list = [dict(row) for row in cursor.fetchall()]
         
+    # [Q13] Market News Stream (Temporal Limit)
     cursor.execute("SELECT * FROM market_news ORDER BY published_at DESC LIMIT 10")
     news = [dict(row) for row in cursor.fetchall()]
     
+    # [Q14] Pending Surveillance Request Stream (User)
     cursor.execute(f"""
         SELECT r.*, a.symbol as symbol 
         FROM trade_requests r
@@ -317,6 +332,7 @@ def manage_holding():
     conn = get_db_connection()
     cursor, q = get_db_cursor(conn)
     try:
+        # [Q15] Authorization Handshake for Resource Governance
         cursor.execute(
             f"SELECT portfolio_id FROM portfolios WHERE portfolio_id = {q} AND user_id = {q}",
             (portfolio_id, session['user_id']),
@@ -327,6 +343,7 @@ def manage_holding():
             return redirect(url_for('index'))
 
         # PIVOT: Instead of direct transaction, we insert a trade request
+        # [Q16] Trade Protocol Insertion (Asynchronous Queue)
         cursor.execute(f"""
             INSERT INTO trade_requests (user_id, portfolio_id, asset_id, transaction_type, quantity, requested_price, status) 
             VALUES ({q}, {q}, {q}, {q}, {q}, {q}, 'PENDING')
@@ -349,6 +366,7 @@ def admin_requests():
     conn = get_db_connection()
     cursor, q = get_db_cursor(conn)
     
+    # [Q17] Multi-Table Surveillance Analytics (Admin)
     cursor.execute("""
         SELECT r.*, u.username as operative_name, p.name as portfolio_name, a.symbol as asset_symbol
         FROM trade_requests r
@@ -380,6 +398,7 @@ def action_trade_request(request_id):
     is_mysql = not isinstance(conn, sqlite3.Connection)
     
     # 1. Fetch request details
+    # [Q18] Single Protocol Retrieval
     cursor.execute(f"SELECT * FROM trade_requests WHERE request_id = {q}", (request_id,))
     req = cursor.fetchone()
     
@@ -392,6 +411,7 @@ def action_trade_request(request_id):
     if action == 'approve':
         try:
             if req['transaction_type'] == 'SELL':
+                # [Q19] Locked State Verification (Inventory Guard)
                 holding_query = f"""
                     SELECT quantity
                     FROM holdings
@@ -410,15 +430,18 @@ def action_trade_request(request_id):
                     return redirect(url_for('admin_requests'))
 
             # Commit to actual transaction ledger
+            # [Q20] Financial Ledger Commitment
             cursor.execute(f"""
                 INSERT INTO transactions (portfolio_id, asset_id, transaction_type, quantity, price_per_unit, transaction_date)
                 VALUES ({q}, {q}, {q}, {q}, {q}, CURRENT_TIMESTAMP)
             """, (req['portfolio_id'], req['asset_id'], req['transaction_type'], req['quantity'], req['requested_price']))
             
             # Update status
+            # [Q21] Protocol Status Lifecycle Update (Approval)
             cursor.execute(f"UPDATE trade_requests SET status = 'APPROVED', actioned_at = CURRENT_TIMESTAMP WHERE request_id = {q}", (request_id,))
             
             # Audit log
+            # [Q22] Forensic Audit Injection (Compliance)
             cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q}, {q})", 
                            (session['user_id'], f"APPROVED trade request #{request_id} for user {req['user_id']}"))
             
@@ -429,6 +452,7 @@ def action_trade_request(request_id):
             flash(f"Approval sequence failed: {str(e)}", "danger")
     else:
         # Rejected
+        # [Q23] Protocol Status Lifecycle Update (Rejection)
         cursor.execute(f"UPDATE trade_requests SET status = 'REJECTED', actioned_at = CURRENT_TIMESTAMP WHERE request_id = {q}", (request_id,))
         cursor.execute(f"INSERT INTO audit_logs (admin_id, action) VALUES ({q}, {q})", 
                        (session['user_id'], f"REJECTED trade request #{request_id} for user {req['user_id']}"))
@@ -447,6 +471,7 @@ def login():
         
         conn = get_db_connection()
         cursor, q = get_db_cursor(conn)
+        # [Q24] Operative Authentication Handshake
         cursor.execute(f"SELECT * FROM users WHERE username = {q}", (username,))
         user = cursor.fetchone()
         close_quietly(cursor)
@@ -487,6 +512,7 @@ def register():
         from werkzeug.security import generate_password_hash
         password_hash = generate_password_hash(password, method='pbkdf2:sha256')
         
+        # [Q25] Operative Identity Onboarding
         cursor.execute(f"INSERT INTO users (username, email, password_hash, role) VALUES ({q}, {q}, {q}, 'user')", (username, email, password_hash))
         conn.commit()
         close_quietly(cursor)
@@ -511,6 +537,7 @@ def admin_audit():
         
     conn = get_db_connection()
     cursor, q = get_db_cursor(conn)
+    # [Q26] Relational Audit Retrieval
     cursor.execute("""
         SELECT l.*, u.username as admin_name
         FROM audit_logs l
@@ -561,6 +588,7 @@ def sql_console():
     
     # DDL REFLECTION FIX: Fetch tables AFTER the query runs
     try:
+        # [Q27] Global Namespace Reflection (DDL)
         if is_mysql:
             table_query = "SHOW TABLES"
         else:
@@ -574,6 +602,7 @@ def sql_console():
             if table_name in ('sqlite_sequence', 'audit_logs'): continue
             
             # Use specific connection for sub-query if needed, but here simple is better
+            # [Q28] Dynamic Record Cardinality Check
             cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
             cnt_row = cursor.fetchone()
             count = cnt_row['count'] if cnt_row else 0
@@ -595,6 +624,115 @@ def sql_console():
     close_quietly(conn)
     
     return render_template('sql_console.html', tables=tables, results=results, columns=columns, error=error, query=query, user=user, telemetry=connection_meta)
+
+@app.route('/admin/intel')
+def admin_intel():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    cursor, q = get_db_cursor(conn)
+    
+    # [Q29] Asset Allocation Analytics (Grouped Aggregation)
+    cursor.execute("""
+        SELECT a.asset_type, SUM(h.quantity * a.current_price) as total_value 
+        FROM holdings h 
+        JOIN assets a ON h.asset_id = a.asset_id 
+        GROUP BY a.asset_type
+    """)
+    allocation = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q30] High-Velocity Asset Ranking (Order By Aggregation)
+    cursor.execute("""
+        SELECT a.symbol, SUM(t.quantity * t.price_per_unit) as vol 
+        FROM transactions t 
+        JOIN assets a ON t.asset_id = a.asset_id 
+        GROUP BY a.symbol 
+        ORDER BY vol DESC LIMIT 5
+    """)
+    top_assets = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q31] Compliance Surveillance: High-Value Liquidity Events
+    cursor.execute("""
+        SELECT t.*, u.username 
+        FROM transactions t 
+        JOIN portfolios p ON t.portfolio_id = p.portfolio_id 
+        JOIN users u ON p.user_id = u.user_id 
+        WHERE (t.quantity * t.price_per_unit) > 100000
+    """)
+    high_value_trades = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q32] Operative Net Worth Rankings (Complex Join Aggregation)
+    cursor.execute("""
+        SELECT u.username, SUM(p.total_value) as net_worth 
+        FROM users u 
+        JOIN portfolios p ON u.user_id = p.user_id 
+        GROUP BY u.user_id 
+        ORDER BY net_worth DESC LIMIT 10
+    """)
+    rankings = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q33] Node Stagnation Detection (Left Join Null Check)
+    cursor.execute("""
+        SELECT p.name as p_name, u.username 
+        FROM portfolios p 
+        JOIN users u ON p.user_id = u.user_id 
+        LEFT JOIN transactions t ON p.portfolio_id = t.portfolio_id 
+        WHERE t.transaction_id IS NULL
+    """)
+    stale_nodes = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q34] Daily Settlement Velocity (Temporal Aggregation)
+    cursor.execute("""
+        SELECT DATE(transaction_date) as day, SUM(quantity * price_per_unit) as day_vol 
+        FROM transactions 
+        GROUP BY day 
+        ORDER BY day DESC LIMIT 7
+    """)
+    daily_vol = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q35] Watchlist Saturation Analytics (Outer Join Rank)
+    cursor.execute("""
+        SELECT a.symbol, COUNT(wi.item_id) as watch_count 
+        FROM assets a 
+        LEFT JOIN watchlist_items wi ON a.asset_id = wi.asset_id 
+        GROUP BY a.asset_id 
+        ORDER BY watch_count DESC LIMIT 10
+    """)
+    watchlist_popularity = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q36] Asset Diversity Spectrum (Cardinality Analysis)
+    cursor.execute("SELECT asset_type, COUNT(*) as count FROM assets GROUP BY asset_type")
+    diversity = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q37] Portfolio Descriptive Statistics (Multi-Aggregate)
+    cursor.execute("SELECT MAX(total_value) as max_val, MIN(total_value) as min_val, AVG(total_value) as avg_val FROM portfolios")
+    portfolio_stats = cursor.fetchone()
+    
+    # [Q38] Threat Surveillance Protocol (Keyword Pattern Matching)
+    cursor.execute("SELECT * FROM audit_logs WHERE action LIKE '%DROP%' OR action LIKE '%DELETE%' LIMIT 20")
+    threat_logs = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q39] RBAC Cardinality (Authentication Metrics)
+    cursor.execute("SELECT role, COUNT(*) as count FROM users GROUP BY role")
+    rbac_metrics = [dict(row) for row in cursor.fetchall()]
+    
+    # [Q40] Asset Volatility Outliers (Subquery Comparison)
+    cursor.execute("SELECT symbol, current_price FROM assets WHERE current_price > (SELECT AVG(current_price) FROM assets) LIMIT 10")
+    outliers = [dict(row) for row in cursor.fetchall()]
+    
+    connection_meta = get_telemetry(conn)
+    close_quietly(cursor)
+    close_quietly(conn)
+
+    return render_template('intel.html', 
+                           allocation=allocation, top_assets=top_assets,
+                           high_value=high_value_trades, rankings=rankings,
+                           stale=stale_nodes, daily_vol=daily_vol,
+                           popularity=watchlist_popularity, diversity=diversity,
+                           stats=portfolio_stats, threat_logs=threat_logs,
+                           rbac=rbac_metrics, outliers=outliers,
+                           telemetry=connection_meta)
 
 if __name__ == '__main__':
     debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'

@@ -1,0 +1,274 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header style="margin-bottom: 2.5rem;">
+    <h1 style="font-size: 2.5rem; letter-spacing: -1px; margin-bottom: 0.5rem;">Institutional <span style="color: var(--accent-primary);">Intelligence</span></h1>
+    <p style="color: var(--text-secondary); margin: 0;">Advanced SQL Analytics Node // Global Portfolio Surveillance</p>
+</header>
+
+<!-- High-Level Stats Pod -->
+<div class="grid grid-3" style="margin-bottom: 2rem;">
+    <div class="card">
+        <div class="card-title">Max Portfolio Value [Q37]</div>
+        <div class="stat-value">₹{{ "{:,.2f}".format(stats.max_val) if stats.max_val else 0 }}</div>
+    </div>
+    <div class="card">
+        <div class="card-title">Average Valuation [Q37]</div>
+        <div class="stat-value" style="color: var(--accent-secondary);">₹{{ "{:,.2f}".format(stats.avg_val) if stats.avg_val else 0 }}</div>
+    </div>
+    <div class="card">
+        <div class="card-title">System Nodes [Q39]</div>
+        <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+            {% for r in rbac %}
+            <div class="badge" style="background: rgba(255,255,255,0.05);">{{ r.role|upper }}: {{ r.count }}</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <!-- Asset Allocation [Q29] -->
+    <div class="card">
+        <div class="card-title">Asset Allocation Distribution [Q29]</div>
+        <div style="height: 300px; margin-top: 1rem;">
+            <canvas id="intelAllocationChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Watchlist Popularity [Q35] -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; font-size: 1rem;">WATCHLIST SATURATION [Q35]</h3>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Watch Count</th>
+                    <th>Market Sentiment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in popularity %}
+                <tr>
+                    <td style="font-weight: 600; color: var(--accent-primary);">{{ item.symbol }}</td>
+                    <td>{{ item.watch_count }}</td>
+                    <td><span class="badge badge-success">BULLISH</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- High Value Compliance [Q31] -->
+<div class="card" style="margin-top: 1.5rem; padding: 0; border-color: var(--danger);">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); background: rgba(239, 68, 68, 0.05);">
+        <h3 style="margin: 0; font-size: 1rem; color: var(--danger);">COMPLIANCE ALERT: HIGH-VALUE LIQUIDITY EVENTS [Q31]</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Operative</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Total Value</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trade in high_value %}
+                <tr>
+                    <td>{{ trade.username }}</td>
+                    <td><span class="badge {{ 'badge-success' if trade.transaction_type == 'BUY' else 'badge-danger' }}">{{ trade.transaction_type }}</span></td>
+                    <td>{{ trade.quantity }}</td>
+                    <td>₹{{ "{:,.2f}".format(trade.price_per_unit) }}</td>
+                    <td style="font-weight: 700;">₹{{ "{:,.2f}".format(trade.quantity * trade.price_per_unit) }}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-secondary);">{{ trade.transaction_date }}</td>
+                </tr>
+                {% endfor %}
+                {% if not high_value %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No high-value triggers detected in history.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-2" style="margin-top: 1.5rem;">
+    <!-- Leaderboard [Q32] -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; font-size: 1rem;">OPERATIVE NET WORTH RANKINGS [Q32]</h3>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Operative</th>
+                    <th>Aggregated Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rankings %}
+                <tr>
+                    <td style="font-weight: 600;">{{ r.username }}</td>
+                    <td style="color: var(--accent-secondary);">₹{{ "{:,.2f}".format(r.net_worth) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Volatility Outliers [Q40] -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; font-size: 1rem;">ASSET VOLATILITY OUTLIERS [Q40]</h3>
+            <p style="font-size: 0.7rem; color: var(--text-secondary); margin: 0;">Price > Average Market Mean</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Current Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in outliers %}
+                <tr>
+                    <td style="font-weight: 600; color: var(--accent-primary);">{{ o.symbol }}</td>
+                    <td>₹{{ "{:,.2f}".format(o.current_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Security Surveillance [Q38] -->
+<div class="card" style="margin-top: 1.5rem; padding: 0;">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+        <h3 style="margin: 0; font-size: 1rem; color: var(--warning);">THREAT SURVEILLANCE PROTOCOL: SQL PATTERN MATCH [Q38]</h3>
+    </div>
+    <div style="max-height: 300px; overflow-y: auto;">
+        <table style="font-family: var(--font-mono); font-size: 0.8rem;">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Action Detail</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in threat_logs %}
+                <tr>
+                    <td style="color: var(--text-secondary);">#{{ log.log_id }}</td>
+                    <td style="color: var(--warning);">{{ log.action }}</td>
+                    <td>{{ log.timestamp }}</td>
+                </tr>
+                {% endfor %}
+                {% if not threat_logs %}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No suspicious SQL patterns detected.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-3" style="margin-top: 1.5rem;">
+    <!-- [Q30] Top Velocity -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+            <h4 style="margin: 0; font-size: 0.8rem;">HIGH-VELOCITY ASSETS [Q30]</h4>
+        </div>
+        <div style="padding: 1rem;">
+            {% for item in top_assets %}
+            <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                <span style="font-weight: 600;">{{ item.symbol }}</span>
+                <span style="color: var(--text-secondary);">₹{{ "{:,.0f}".format(item.vol) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- [Q34] Daily Vol -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+            <h4 style="margin: 0; font-size: 0.8rem;">SETTLEMENT VELOCITY [Q34]</h4>
+        </div>
+        <div style="padding: 1rem;">
+            {% for item in daily_vol %}
+            <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                <span style="font-size: 0.75rem;">{{ item.day }}</span>
+                <span style="font-weight: 600; font-size: 0.75rem;">₹{{ "{:,.0f}".format(item.day_vol) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- [Q33] Stale Nodes -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+            <h4 style="margin: 0; font-size: 0.8rem;">STAGNANT NODES [Q33]</h4>
+        </div>
+        <div style="padding: 1rem; max-height: 150px; overflow-y: auto;">
+            {% for item in stale %}
+            <div style="margin-bottom: 0.25rem; font-size: 0.7rem;">
+                <span style="color: var(--warning);">⚠</span> {{ item.username }}: {{ item.p_name }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('intelAllocationChart').getContext('2d');
+        
+        const allocationData = [
+            {% for item in allocation %}
+            { type: '{{ item.asset_type }}', value: {{ item.total_value }} },
+            {% endfor %}
+        ];
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: allocationData.map(d => d.type),
+                datasets: [{
+                    label: 'Total Value (₹)',
+                    data: allocationData.map(d => d.value),
+                    backgroundColor: '#10b981',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

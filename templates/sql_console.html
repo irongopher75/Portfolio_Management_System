@@ -8,19 +8,49 @@
 
 <div class="grid grid-2" style="grid-template-columns: 280px 1fr; align-items: start;">
     <!-- Active Schemas Sidebar -->
-    <aside class="card" style="padding: 1rem; position: sticky; top: 1.5rem;">
-        <div class="card-title" style="margin-bottom: 1.5rem;">Active Schemas</div>
-        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            {% for table in tables %}
-            <button class="nav-item" onclick="appendToQuery('{{ table.name }}')" style="width: 100%; border: none; background: transparent; justify-content: space-between; cursor: pointer;">
-                <code style="color: var(--accent-primary);">{{ table.name }}</code>
-                <span style="font-size: 0.7rem; opacity: 0.6;">{{ table.count }}R</span>
-            </button>
-            {% endfor %}
+    <aside class="card" style="padding: 1.25rem; position: sticky; top: 1.5rem; background: rgba(16, 185, 129, 0.02); border-color: rgba(16, 185, 129, 0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div class="card-title" style="margin: 0;">Node Schema List</div>
+            <span class="badge" style="background: var(--accent-primary); color: #000; font-weight: 800;">{{ tables|length }} ACTIVE</span>
         </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem;">
+            {% for table in tables %}
+            <div class="schema-icon-node" onclick="appendToQuery('{{ table.name }}')" title="{{ table.name }} ({{ table.count }} rows)" 
+                 style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; cursor: pointer; transition: transform 0.2s ease, opacity 0.3s ease; animation: nodePop 0.4s ease-out;">
+                <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                    <div style="font-size: 1.2rem;">📦</div>
+                    <div style="position: absolute; bottom: 0; right: 0; background: var(--accent-primary); width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 5px var(--accent-primary);"></div>
+                </div>
+                <code style="font-size: 0.65rem; color: var(--text-secondary); text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ table.name }}</code>
+            </div>
+            {% endfor %}
+            
+            {% if not tables %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.75rem; border: 1px dashed var(--border-color); border-radius: 8px;">
+                No tables detected in workspace.
+            </div>
+            {% endif %}
+        </div>
+
+        <style>
+            @keyframes nodePop {
+                0% { transform: scale(0.5); opacity: 0; }
+                80% { transform: scale(1.1); }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            .schema-icon-node:hover {
+                transform: translateY(-4px);
+            }
+            .schema-icon-node:hover div {
+                border-color: var(--accent-primary) !important;
+                background: rgba(16, 185, 129, 0.1) !important;
+            }
+        </style>
+
         <div style="margin-top: 2rem; padding: 1rem; background: rgba(16, 185, 129, 0.03); border: 1px dashed rgba(16, 185, 129, 0.2); border-radius: 8px;">
             <p style="font-size: 0.7rem; color: var(--text-secondary); margin: 0; line-height: 1.4;">
-                <strong style="color: var(--accent-primary);">INJECTION MODE:</strong> Click a schema identifier to append it to the active stack.
+                <strong style="color: var(--accent-primary);">DDL REFLECTION:</strong> Creating or dropping tables will instantly update this node grid. Click to inject name.
             </p>
         </div>
     </aside>
