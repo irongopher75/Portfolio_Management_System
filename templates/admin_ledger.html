@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-white border-secondary shadow-lg">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="display-6 mb-1 text-gradient-gold">Immutable Transaction Ledger</h2>
+                            <p class="text-secondary mb-0">Unit 6 Proof: Forensic Audit of {{ total_records }} Sequence-Validated Transactions</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success p-2">ACID: DURABLE</span>
+                            <span class="badge bg-outline-info p-2 ms-2">NODE: AXIOM-01</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="card bg-dark border-secondary">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="bg-black text-secondary">
+                        <tr>
+                            <th class="ps-4">TXN_ID</th>
+                            <th>REQ_ID</th>
+                            <th>PORTFOLIO_NODE</th>
+                            <th>ASSET</th>
+                            <th>TYPE</th>
+                            <th>QUANTITY</th>
+                            <th>PRICE_UNIT</th>
+                            <th class="pe-4">TIMESTAMP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions %}
+                        <tr>
+                            <td class="ps-4 font-monospace text-info">#{{ t.transaction_id }}</td>
+                            <td>
+                                {% if t.request_id %}
+                                <span class="badge bg-secondary">REQ_{{ t.request_id }}</span>
+                                {% else %}
+                                <span class="text-muted small italic">LEGACY_RESTORED</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ t.portfolio_name }}</td>
+                            <td><strong class="text-white">{{ t.symbol }}</strong></td>
+                            <td>
+                                <span class="badge {% if t.type_name == 'BUY' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ t.type_name }}
+                                </span>
+                            </td>
+                            <td>{{ "%.4f"|format(t.quantity) }}</td>
+                            <td>${{ "%.2f"|format(t.price_per_unit) }}</td>
+                            <td class="pe-4 text-secondary small">{{ t.transaction_date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Ledger Pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link bg-dark text-secondary border-secondary" href="{{ url_for('admin_ledger', page=page-1) }}">PREV_BLOCK</a>
+            </li>
+            
+            <li class="page-item active">
+                <span class="page-link bg-success border-success text-white">BLOCK_{{ page }} / {{ total_pages }}</span>
+            </li>
+
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link bg-dark text-secondary border-secondary" href="{{ url_for('admin_ledger', page=page+1) }}">NEXT_BLOCK</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<style>
+    .text-gradient-gold {
+        background: linear-gradient(45deg, #f1c40f, #e67e22);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    .badge {
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.5px;
+    }
+</style>
+{% endblock %}

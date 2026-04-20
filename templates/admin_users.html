@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+
+{% block title %}Axiom Admin | Operative Dossier{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 animate__animated animate__fadeIn">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-white border-secondary shadow-lg">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="display-6 mb-1 text-gradient-emerald">Operative Dossier</h2>
+                            <p class="text-secondary mb-0">Unit 5 Proof: RBAC Lifecycle Management for {{ total_users }} provisioned nodes</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-emerald text-dark p-2">NODES_ONLINE</span>
+                            <span class="badge bg-outline-info p-2 ms-2">ACTIVE_PROTOCOL: 3NF_SECURE</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOBAL ANALYTICS NODES -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 text-center border-top border-4 border-emerald shadow">
+                <div class="text-xs text-secondary text-uppercase fw-bold">Active Operatives</div>
+                <div class="h2 fw-bold text-emerald">{{ total_users }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 text-center border-top border-4 border-info shadow">
+                <div class="text-xs text-secondary text-uppercase fw-bold">Admin Clearance</div>
+                <div class="h2 fw-bold text-info">04</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 text-center border-top border-4 border-warning shadow">
+                <div class="text-xs text-secondary text-uppercase fw-bold">Protocol Deviations</div>
+                <div class="h2 fw-bold text-warning">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 text-center border-top border-4 border-primary shadow">
+                <div class="text-xs text-secondary text-uppercase fw-bold">System Uptime</div>
+                <div class="h2 fw-bold">99.9%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPERATIVE SELECTION GRID -->
+    <div class="card bg-dark border-secondary shadow-lg">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="bg-black text-secondary">
+                        <tr>
+                            <th class="ps-4">OPERATIVE ID</th>
+                            <th>IDENTITY</th>
+                            <th>COMMISSION DATE</th>
+                            <th>CLEARANCE</th>
+                            <th class="pe-4">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td class="ps-4 font-monospace text-info">#{{ user.user_id }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-2 bg-emerald text-dark d-flex align-items-center justify-content-center fw-bold rounded-circle">
+                                        {{ user.username[0]|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ user.username }}</div>
+                                        <div class="text-xs text-secondary">{{ user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-secondary small">{{ user.created_at }}</td>
+                            <td>
+                                <span class="badge {% if user.role_name == 'admin' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {{ user.role_name|upper }}
+                                </span>
+                            </td>
+                            <td class="pe-4">
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-info btn-sm"><i class="fas fa-eye"></i></button>
+                                    <button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Users Pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link bg-dark text-secondary border-secondary" href="{{ url_for('admin_users', page=page-1) }}">PREV_BLOCK</a>
+            </li>
+            <li class="page-item active">
+                <span class="page-link bg-emerald border-emerald text-dark">BLOCK_{{ page }} / {{ total_pages }}</span>
+            </li>
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link bg-dark text-secondary border-secondary" href="{{ url_for('admin_users', page=page+1) }}">NEXT_BLOCK</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<style>
+    .text-gradient-emerald {
+        background: linear-gradient(45deg, #10b981, #3b82f6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+    }
+    .bg-emerald { background-color: #10b981 !important; }
+    .text-emerald { color: #10b981 !important; }
+    .border-emerald { border-color: #10b981 !important; }
+    .avatar-sm { width: 32px; height: 32px; font-size: 0.8rem; }
+    .text-xs { font-size: 0.75rem; }
+    .badge { font-family: 'JetBrains Mono', monospace; }
+</style>
+{% endblock %}

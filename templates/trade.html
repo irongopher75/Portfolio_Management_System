@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Trade Terminal</h1>
+    <p>Submit trade requests for institutional compliance review.</p>
+</div>
+
+<div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--accent-primary);">
+    <h3 class="card-title">Provision New Institutional Node</h3>
+    <form action="{{ url_for('create_portfolio') }}" method="POST" style="display: flex; gap: 1rem; align-items: flex-end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Node Identifier (Portfolio Name)</label>
+            <input type="text" name="portfolio_name" required placeholder="e.g. Hedge Strategy Alpha" style="width: 100%;">
+        </div>
+        <button type="submit" class="btn" style="padding: 0.8rem 1.5rem;">Launch Node</button>
+    </form>
+</div>
+
+<div class="grid grid-2">
+    <!-- Order Entry Card -->
+    <div class="card">
+        <h3 class="card-title">New Trade Request</h3>
+        <form action="{{ url_for('trade') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Target Portfolio</label>
+                <select name="portfolio_id" required style="width: 100%;">
+                    {% for p in portfolios %}
+                    <option value="{{ p.portfolio_id }}">{{ p.name }} ({{ "%.2f"|format(p.total_value) }} INR)</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Asset Selection</label>
+                <select name="asset_id" required style="width: 100%;">
+                    {% for a in assets %}
+                    <option value="{{ a.asset_id }}">{{ a.symbol }} - {{ a.name }} (Current: {{ "%.2f"|format(a.current_price) }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-2" style="margin-bottom: 1.5rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Transaction Type</label>
+                    <select name="transaction_type" required style="width: 100%;">
+                        <option value="BUY">BUY</option>
+                        <option value="SELL">SELL</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Quantity</label>
+                    <input type="number" name="quantity" step="0.0001" min="0.0001" required placeholder="0.0000" style="width: 100%;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; padding: 1rem; margin-top: 1rem;">Transmit Request to Surveillance Node</button>
+        </form>
+    </div>
+
+    <!-- Status Tracking Card -->
+    <div class="card">
+        <h3 class="card-title">Surveillance Status</h3>
+        <div style="overflow-x: auto;">
+            {% if recent_requests %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Asset</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recent_requests %}
+                    <tr>
+                        <td style="font-size: 0.75rem; color: var(--text-secondary);">{{ r.created_at.strftime('%m-%d %H:%M') if r.created_at else 'N/A' }}</td>
+                        <td>
+                            <span class="badge {% if r.transaction_type == 'BUY' %}badge-success{% else %}badge-danger{% endif %}">
+                                {{ r.transaction_type }}
+                            </span>
+                        </td>
+                        <td style="font-family: var(--font-mono); font-weight: 600;">{{ r.symbol }}</td>
+                        <td>
+                            <span class="badge" style="
+                                {% if r.status == 'PENDING' %}background: rgba(255, 193, 7, 0.1); color: #ffc107;
+                                {% elif r.status == 'APPROVED' %}background: rgba(16, 185, 129, 0.1); color: var(--accent-primary);
+                                {% else %}background: rgba(239, 68, 68, 0.1); color: var(--danger);{% endif %}
+                            ">
+                                {{ r.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                No recent trade activity detected.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 2rem; border-left: 4px solid var(--accent-secondary);">
+    <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="font-size: 1.5rem;">ℹ️</div>
+        <div>
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">Institutional Protocol Notice</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+                All trade requests are logged in the **Surveillance Explorer** and must be vetted by a system administrator. 
+                Approved BUY requests will update your cost basis automatically. Approved SELL requests require sufficient 
+                inventory in your portfolio holdings to pass the automated audit loop.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

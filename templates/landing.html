@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}Axiom Sentinel | Node Entry{% endblock %}
+
+{% block content %}
+<div class="landing-hero d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="glass-card text-center p-5 animate__animated animate__fadeIn" style="max-width: 800px; backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
+        <div class="node-id-badge mb-4">
+            <span class="badge bg-success-glow">SYSTEM ACTIVE: AXIOM-VIVA-V6</span>
+        </div>
+        <h1 class="display-3 mb-3 fw-bold system-text-shadow">AXIOM <span class="text-emerald">INSTITUTIONAL</span></h1>
+        <p class="lead mb-5 text-muted-v2">A high-fidelity Database Management Terminal for sovereign portfolio orchestration and risk surveillance.</p>
+        
+        <div class="row mb-5">
+            <div class="col-md-4">
+                <div class="metric-node">
+                    <h5 class="text-emerald">DATABASE</h5>
+                    <div class="h3 fw-bold">{{ telemetry.protocol if telemetry else 'MySQL 9.0' }}</div>
+                    <div class="text-xs text-muted-v2">Engine: InnoDB / Atomic</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-node border-start border-end">
+                    <h5 class="text-emerald">LATENCY</h5>
+                    <div class="h3 fw-bold text-gradient-gold">{{ telemetry.latency if telemetry else '14' }} ms</div>
+                    <div class="text-xs text-muted-v2">Regional Relay substation</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-node">
+                    <h5 class="text-emerald">INTEGRITY</h5>
+                    <div class="h3 fw-bold">100%</div>
+                    <div class="text-xs text-muted-v2">Trigger-based Enforcement</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+            {% if 'user_id' in session %}
+                <a href="{{ url_for('index') }}" class="btn btn-emerald btn-lg px-5 py-3 shadow-glow animate__animated animate__pulse animate__infinite">RE-ENTER TERMINAL</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-emerald btn-lg px-5 py-3 shadow-glow">OPERATIVE LOGIN</a>
+                <a href="{{ url_for('register') }}" class="btn btn-outline-emerald btn-lg px-5 py-3">PROVISION ACCESS</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- DATA WATERFALL OVERLAY (Decorative DBMS flux) -->
+<div class="data-waterfall-bg"></div>
+
+<style>
+    .landing-hero {
+        background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+    }
+    .text-emerald { color: #10b981; }
+    .bg-success-glow {
+        background: #064e3b;
+        color: #10b981;
+        border: 1px solid #10b981;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    }
+    .text-muted-v2 { color: rgba(255,255,255,0.6); }
+    .metric-node h5 { font-size: 0.75rem; letter-spacing: 2px; }
+    .shadow-glow {
+        box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+    }
+    .btn-emerald {
+        background: #10b981;
+        color: #000;
+        font-weight: 700;
+        border: none;
+    }
+    .btn-emerald:hover {
+        background: #34d399;
+        transform: translateY(-2px);
+    }
+    .animate__infinite { animation-duration: 3s; }
+    
+    .data-waterfall-bg {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        z-index: -1;
+        opacity: 0.1;
+        background-image: 
+            linear-gradient(rgba(16, 185, 129, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(16, 185, 129, 0.1) 1px, transparent 1px);
+        background-size: 50px 50px;
+    }
+</style>
+{% endblock %}

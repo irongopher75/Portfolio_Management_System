@@ -4,8 +4,168 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AXIOM Terminal | Institutional Portfolio Surveillance</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            --bg-main: #0a0a0c;
+            --bg-card: #111114;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-primary: #10b981; /* Emerald-500 */
+            --accent-secondary: #6366f1; /* Indigo-500 */
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444; /* Rose-500 */
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            margin: 0;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Institutional Sidebar */
+        .sidebar {
+            width: 260px;
+            border-right: 1px solid var(--border-color);
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .sidebar-brand {
+            padding: 2rem;
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: 2px;
+            color: var(--accent-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-links {
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            margin-left: 260px;
+            padding: 2rem;
+            max-width: 1400px;
+        }
+
+        /* Professional Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover { border-color: rgba(16, 185, 129, 0.3); }
+
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Typography & Stat Values */
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        h1, h2, h3 { margin-top: 0; font-weight: 700; }
+
+        /* Grid System */
+        .grid { display: grid; gap: 1.5rem; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-2 { grid-template-columns: 2fr 1fr; }
+
+        /* Institutional Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-secondary); padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        td { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); font-size: 0.9rem; }
+
+        .positive { color: var(--accent-primary); }
+        .negative { color: var(--danger); }
+
+        .btn {
+            background: var(--accent-secondary);
+            color: white; border: none; padding: 0.6rem 1.2rem;
+            border-radius: 6px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+
+        input, select, textarea {
+            background: #1a1a1f; border: 1px solid var(--border-color);
+            color: white; padding: 0.6rem; border-radius: 6px; outline: none;
+            position: relative; z-index: 10; cursor: pointer;
+        }
+        select { appearance: auto !important; }
+
+        .badge {
+            padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase;
+        }
+        .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--accent-primary); }
+        .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block; margin-right: 6px;
+        }
+        .status-dot.active {
+            background-color: var(--accent-primary);
+            box-shadow: 0 0 8px var(--accent-primary);
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .app-container { animation: fadeIn 0.4s ease-out; }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -19,9 +179,14 @@
                 <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
                     Dashboard
                 </a>
+                {% if session.get('role') == 'user' %}
+                <a href="{{ url_for('trade') }}" class="nav-item {% if request.endpoint == 'trade' %}active{% endif %}">
+                    Order Desk
+                </a>
+                {% endif %}
                 {% if session.get('role') == 'admin' %}
-                <a href="{{ url_for('admin_audit') }}" class="nav-item {% if request.endpoint == 'admin_audit' %}active{% endif %}">
-                    Audit Logs
+                <a href="{{ url_for('admin_ledger') }}" class="nav-item {% if request.endpoint == 'admin_ledger' %}active{% endif %}">
+                    Institutional Ledger
                 </a>
                 <a href="{{ url_for('admin_requests') }}" class="nav-item {% if request.endpoint == 'admin_requests' %}active{% endif %}">
                     Surveillance Queue
@@ -29,13 +194,22 @@
                 <a href="{{ url_for('admin_intel') }}" class="nav-item {% if request.endpoint == 'admin_intel' %}active{% endif %}">
                     Institutional Intel
                 </a>
+                <a href="{{ url_for('admin_oracle') }}" class="nav-item {% if request.endpoint == 'admin_oracle' %}active{% endif %}">
+                    The Oracle
+                </a>
+                <a href="{{ url_for('admin_users') }}" class="nav-item {% if request.endpoint == 'admin_users' %}active{% endif %}">
+                    Operative Dossier
+                </a>
+                <a href="{{ url_for('admin_schema') }}" class="nav-item {% if request.endpoint == 'admin_schema' %}active{% endif %}">
+                    Technical Schema Audit
+                </a>
                 <a href="{{ url_for('sql_console') }}" class="nav-item {% if request.endpoint == 'sql_console' %}active{% endif %}">
                     Surveillance Explorer
                 </a>
                 {% endif %}
             </nav>
             <div style="padding: 1.5rem; border-top: 1px solid var(--border-color);">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">User ID: {{ session['username'] }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Operative: {{ session['username'] }}</div>
                 <a href="{{ url_for('logout') }}" style="color: var(--danger); text-decoration: none; font-size: 0.8rem; font-weight: 600;">DISCONNECT NODE</a>
             </div>
         </aside>
@@ -55,7 +229,6 @@
             {% block content %}{% endblock %}
         </main>
     </div>
-
     {% block scripts %}{% endblock %}
 </body>
 </html>

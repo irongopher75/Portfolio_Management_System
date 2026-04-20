@@ -53,7 +53,11 @@
                 <tr>
                     <td style="font-weight: 600; color: var(--accent-primary);">{{ item.symbol }}</td>
                     <td>{{ item.watch_count }}</td>
-                    <td><span class="badge badge-success">BULLISH</span></td>
+                    <td>
+                        <span class="badge {% if item.sentiment == 'BULLISH' %}badge-success{% elif item.sentiment == 'STAGNANT' %}badge-danger{% else %}badge-warning{% endif %}">
+                            {{ item.sentiment }}
+                        </span>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -116,7 +120,7 @@
                 {% for r in rankings %}
                 <tr>
                     <td style="font-weight: 600;">{{ r.username }}</td>
-                    <td style="color: var(--accent-secondary);">₹{{ "{:,.2f}".format(r.net_worth) }}</td>
+                    <td style="color: var(--accent-secondary);">₹{{ "{:,.2f}".format(r.total_value) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

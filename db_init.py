@@ -109,11 +109,20 @@ def seed_data(cursor, conn, is_sqlite=True):
     print("Seeding initial users and assets...")
     admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
     
-    user_query = "INSERT INTO users (username, email, password_hash, role) VALUES (%s, %s, %s, %s)" if not is_sqlite else \
-                 "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)"
+    user_query = (
+        "INSERT INTO users (username, email, password_hash, role_id) VALUES (%s, %s, %s, %s)"
+        if not is_sqlite
+        else "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)"
+    )
     
     try:
-        cursor.execute(user_query, ('admin', 'admin@axiom.com', admin_pw, 'admin'))
+        if not is_sqlite:
+            cursor.execute("SELECT role_id FROM user_roles WHERE role_name = %s", ("admin",))
+            role_row = cursor.fetchone()
+            admin_role_id = role_row[0] if role_row else 1
+            cursor.execute(user_query, ("admin", "admin@axiom.com", admin_pw, admin_role_id))
+        else:
+            cursor.execute(user_query, ("admin", "admin@axiom.com", admin_pw, "admin"))
     except:
         print("Admin user already exists or error seeding user.")
 

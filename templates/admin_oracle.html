@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block title %}Axiom Admin | The Oracle{% endblock %}
+
+{% block content %}
+<div class="oracle-container animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="system-title"><i class="fas fa-magic me-2 text-emerald"></i> THE ORACLE</h2>
+        <span class="badge bg-danger-glow"><i class="fas fa-shield-alt me-1"></i> HIGH PRIVILEGE STATE CONTROL</span>
+    </div>
+
+    <div class="row gx-4">
+        <!-- SCENARIO CONTROLS -->
+        <div class="col-md-4">
+            <div class="glass-card p-4 h-100 border-emerald">
+                <h5 class="fw-bold text-emerald mb-3">SCENARIO INJECTION</h5>
+                <p class="text-xs text-muted mb-4">Demonstrate **DML Atomicity (Unit 6)** by triggering market-wide flux events within atomic transaction blocks.</p>
+                
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="d-grid gap-3">
+                        <button name="scenario" value="BLACK_SWAN" class="btn btn-outline-danger btn-lg text-start p-3">
+                            <i class="fas fa-skull-crossbones me-2"></i> <strong>BLACK SWAN</strong>
+                            <div class="text-xs">Triggers -15% Global Price Drop</div>
+                        </button>
+                        <button name="scenario" value="TECH_BOOM" class="btn btn-outline-success btn-lg text-start p-3">
+                            <i class="fas fa-rocket me-2"></i> <strong>TECH SURGE</strong>
+                            <div class="text-xs">Injects +20% Sector Growth</div>
+                        </button>
+                        <button name="scenario" value="RECOVERY" class="btn btn-outline-info btn-lg text-start p-3">
+                            <i class="fas fa-heartbeat me-2"></i> <strong>STABILIZATION</strong>
+                            <div class="text-xs">Applies +5% Correction Patch</div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ASSET MONITOR -->
+        <div class="col-md-8">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3">ASSET STATE ENGINE (DML Flux)</h5>
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-dark table-sm custom-table text-xs">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th>SYMBOL</th>
+                                <th>NAME</th>
+                                <th>PRICE</th>
+                                <th>SYNCED</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                            <tr>
+                                <td class="fw-bold text-emerald">{{ asset.symbol }}</td>
+                                <td class="text-muted">{{ asset.name }}</td>
+                                <td class="fw-bold">₹{{ "%.2f"|format(asset.current_price) }}</td>
+                                <td class="text-xs font-monospace opacity-50">{{ asset.last_updated }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADVANCED ANALYTICS SECTION -->
+    <div class="row mt-4 gx-4">
+        <!-- VIRTUAL VIEWS -->
+        <div class="col-md-6">
+            <div class="glass-card p-4 border-info h-100">
+                <h5 class="text-info fw-bold mb-3">VIRTUALIZED VIEW: view_operative_risk</h5>
+                <p class="text-xs text-muted">Demonstrates **Data Virtualization (Unit 4)** by abstracting complex N-table joins into a reusable view.</p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm text-xs">
+                        <thead>
+                            <tr>
+                                <th>OPERATIVE</th>
+                                <th>ASSET</th>
+                                <th>CONCENTRATION</th>
+                                <th>RISK PROFILE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in risk_data %}
+                            <tr>
+                                <td class="fw-bold">{{ row.username }}</td>
+                                <td class="text-emerald">{{ row.asset }}</td>
+                                <td>{{ "%.1f"|format(row.concentration_pct * 100) }}%</td>
+                                <td>
+                                    <span class="badge {% if row.risk_profile == 'CRITICAL' %}bg-danger animate__animated animate__flash animate__infinite{% else %}bg-success{% endif %}">
+                                        {{ row.risk_profile }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- WINDOW FUNCTIONS -->
+        <div class="col-md-6">
+            <div class="glass-card p-4 border-primary h-100">
+                <h5 class="text-primary fw-bold mb-3">ANALYTIC FUNCTIONS: RANK() OVER</h5>
+                <p class="text-xs text-muted">Demonstrates **Window Functions (Unit 4/6)** for real-time performance partitioning and ranking analysis.</p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm text-xs">
+                        <thead>
+                            <tr>
+                                <th>RANK</th>
+                                <th>OPERATIVE</th>
+                                <th>PORTFOLIO</th>
+                                <th>NET WORTH</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rank in rankings %}
+                            <tr>
+                                <td class="fw-bold text-gradient-gold">#{{ rank.global_rank }}</td>
+                                <td>{{ rank.username }}</td>
+                                <td class="text-muted">{{ rank.portfolio_name }}</td>
+                                <td class="fw-bold text-info">₹{{ "{:,.2f}".format(rank.total_value) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-emerald { border: 1px solid rgba(16, 185, 129, 0.4); }
+    .border-info { border: 1px solid rgba(13, 202, 240, 0.4); }
+    .border-primary { border: 1px solid rgba(99, 102, 241, 0.4); }
+    .bg-danger-glow { background: rgba(220, 53, 69, 0.1); color: #ff6b6b; border: 1px solid rgba(220, 53, 69, 0.3); }
+    .text-xs { font-size: 0.75rem; }
+    .text-gradient-gold { color: #facc15; }
+</style>
+{% endblock %}
